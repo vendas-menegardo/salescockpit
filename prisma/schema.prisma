@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Base {
+  id             String    @id @default(cuid())
+  name           String
+  description    String?
+
+  segment        String?
+  state          String?
+  city           String?
+
+  isActive       Boolean   @default(false)
+
+  companiesCount Int       @default(0)
+
+  companies      Company[]
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Company {
+  id            String   @id @default(cuid())
+
+  baseId        String
+  base          Base     @relation(fields: [baseId], references: [id], onDelete: Cascade)
+
+  corporateName String
+  tradeName     String?
+
+  cnpj          String?  @unique
+
+  email         String?
+  phone         String?
+  website       String?
+
+  segment       String?
+
+  city          String?
+  state         String?
+
+  contactName   String?
+
+  status        String?  @default("Novo")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([baseId])
+  @@index([cnpj])
+  @@index([city])
+}
