@@ -26,12 +26,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCnpj } from "../lib/import-utils";
 import {
   analyzeCompaniesImport,
-  confirmCompaniesImport,
   createImportBase,
+  finalizeCompaniesImportJob,
+  processCompaniesImportBatch,
+  stageCompaniesImportBatch,
+  startCompaniesImportJob,
 } from "../actions/import-companies";
-import { MAX_CSV_BYTES, MAX_CSV_SIZE_LABEL } from "../constants";
+import {
+  IMPORT_STAGING_BATCH_SIZE,
+  MAX_CSV_BYTES,
+  MAX_CSV_SIZE_LABEL,
+} from "../constants";
+import {
+  chunkItems,
+  eligibleRowsForImport,
+} from "../lib/import-batching";
 import type {
   ImportAnalysis,
+  ImportJobProgress,
   ImportResult,
   ImportRowStatus,
 } from "../types/import";
@@ -48,6 +60,25 @@ type ImportCompaniesViewProps = {
 };
 
 const PAGE_SIZE = 10;
+
+type VisibleImportProgress = ImportJobProgress & {
+  phase: "preparing" | "processing";
+};
+
+function importJobStorageKey(baseId: string, fileHash: string) {
+  return `salecockpit.import-job.${baseId}.${fileHash}`;
+}
+
+async function hashCsvText(csvText: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(csvText)
+  );
+
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
+}
 
 const STATUS_META: Record<
   ImportRowStatus,
@@ -105,6 +136,10 @@ export function ImportCompaniesView({
   const [analyzing, setAnalyzing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [creatingBase, setCreatingBase] = useState(false);
+  const [fileHash, setFileHash] = useState("");
+  const [activeJobId, setActiveJobId] = useState("");
+  const [importProgress, setImportProgress] =
+    useState<VisibleImportProgress | null>(null);
 
   const totalPages = analysis
     ? Math.max(1, Math.ceil(analysis.rows.length / PAGE_SIZE))
@@ -122,6 +157,9 @@ export function ImportCompaniesView({
     setError("");
     setAnalysis(null);
     setResult(null);
+    setFileHash("");
+    setActiveJobId("");
+    setImportProgress(null);
 
     if (!selectedFile.name.toLowerCase().endsWith(".csv")) {
       setFile(null);
@@ -198,6 +236,14 @@ export function ImportCompaniesView({
 
       setAnalysis(response.analysis);
       setPage(1);
+      const hash = await hashCsvText(csvText);
+      const storedJobId = localStorage.getItem(
+        importJobStorageKey(response.analysis.base.id, hash)
+      );
+
+      setFileHash(hash);
+      setActiveJobId(storedJobId ?? "");
+      setImportProgress(null);
     } finally {
       setAnalyzing(false);
     }
@@ -212,31 +258,145 @@ export function ImportCompaniesView({
     setConfirming(true);
 
     try {
-      const response = await confirmCompaniesImport({
-        baseId: analysis.base.id,
-        fileName: file.name,
-        csvText,
-      });
+      const eligibleRows = eligibleRowsForImport(analysis.rows);
 
-      if (!response.ok) {
-        setError(response.message);
+      if (eligibleRows.length !== analysis.summary.eligibleRows) {
+        setError(
+          "A prévia mudou e não pode ser importada com segurança. Valide o arquivo novamente."
+        );
         return;
       }
 
-      setResult(response.result);
-      setAnalysis(null);
+      const currentFileHash = fileHash || (await hashCsvText(csvText));
+      const jobId = activeJobId || crypto.randomUUID();
+      const storageKey = importJobStorageKey(
+        analysis.base.id,
+        currentFileHash
+      );
+      const jobContext = {
+        jobId,
+        baseId: analysis.base.id,
+        fileHash: currentFileHash,
+      };
+      const started = await startCompaniesImportJob({
+        ...jobContext,
+        fileName: file.name,
+        summary: analysis.summary,
+      });
+
+      if (!started.ok) {
+        setError(started.message);
+        return;
+      }
+
+      setFileHash(currentFileHash);
+      setActiveJobId(jobId);
+      localStorage.setItem(storageKey, jobId);
+
+      if (started.result) {
+        localStorage.removeItem(storageKey);
+        setResult(started.result);
+        setAnalysis(null);
+        setActiveJobId("");
+        setImportProgress(null);
+        return;
+      }
+
+      setImportProgress({
+        ...started.progress,
+        phase: "preparing",
+      });
+
+      for (const rows of chunkItems(
+        eligibleRows,
+        IMPORT_STAGING_BATCH_SIZE
+      )) {
+        const staged = await stageCompaniesImportBatch({
+          ...jobContext,
+          rows,
+        });
+
+        if (!staged.ok) {
+          setError(staged.message);
+          return;
+        }
+
+        setImportProgress({
+          ...staged.progress,
+          phase: "preparing",
+        });
+      }
+
+      const finalized = await finalizeCompaniesImportJob(jobContext);
+
+      if (!finalized.ok) {
+        setError(finalized.message);
+        return;
+      }
+
+      let processedRows = finalized.progress.processedRows;
+      setImportProgress({
+        ...finalized.progress,
+        phase: "processing",
+      });
+
+      while (processedRows < finalized.progress.eligibleRows) {
+        const processed = await processCompaniesImportBatch(jobContext);
+
+        if (!processed.ok) {
+          setError(processed.message);
+          return;
+        }
+
+        setImportProgress({
+          ...processed.progress,
+          phase: "processing",
+        });
+
+        if (
+          !processed.result &&
+          processed.progress.processedRows <= processedRows
+        ) {
+          setError(
+            "A importação foi pausada porque o lote não avançou. Tente retomar."
+          );
+          return;
+        }
+
+        processedRows = processed.progress.processedRows;
+
+        if (processed.result) {
+          localStorage.removeItem(storageKey);
+          setResult(processed.result);
+          setAnalysis(null);
+          setActiveJobId("");
+          setImportProgress(null);
+          return;
+        }
+      }
+    } catch {
+      setError(
+        "A comunicação foi interrompida. O progresso confirmado foi preservado; tente retomar a importação."
+      );
     } finally {
       setConfirming(false);
     }
   }
 
   function resetImport() {
+    if (fileHash && baseId) {
+      localStorage.removeItem(importJobStorageKey(baseId, fileHash));
+    }
+
     setFile(null);
     setCsvText("");
     setAnalysis(null);
     setResult(null);
     setError("");
     setPage(1);
+    setFileHash("");
+    setActiveJobId("");
+    setImportProgress(null);
   }
 
   if (result) {
@@ -323,10 +483,14 @@ export function ImportCompaniesView({
               <select
                 id="import-base"
                 value={baseId}
+                disabled={confirming}
                 onChange={(event) => {
                   setBaseId(event.target.value);
                   setAnalysis(null);
                   setResult(null);
+                  setFileHash("");
+                  setActiveJobId("");
+                  setImportProgress(null);
                 }}
                 className="h-9 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
@@ -343,6 +507,7 @@ export function ImportCompaniesView({
               type="button"
               variant="outline"
               onClick={() => setShowQuickBase((current) => !current)}
+              disabled={confirming}
             >
               <Plus data-icon="inline-start" />
               Criar base
@@ -365,6 +530,7 @@ export function ImportCompaniesView({
                     onChange={(event) => setQuickName(event.target.value)}
                     placeholder="Ex.: Comércio ES"
                     required
+                    disabled={confirming}
                   />
                 </div>
                 <div className="space-y-2">
@@ -381,10 +547,11 @@ export function ImportCompaniesView({
                       setQuickDescription(event.target.value)
                     }
                     className="min-h-20"
+                    disabled={confirming}
                   />
                 </div>
               </div>
-              <Button type="submit" disabled={creatingBase}>
+              <Button type="submit" disabled={creatingBase || confirming}>
                 {creatingBase ? "Criando..." : "Criar e selecionar base"}
               </Button>
             </form>
@@ -397,7 +564,7 @@ export function ImportCompaniesView({
           <CardTitle>2. Arquivo CSV</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <UploadZone onFileSelect={handleFile} />
+          <UploadZone onFileSelect={handleFile} disabled={confirming} />
 
           {file && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
@@ -410,7 +577,7 @@ export function ImportCompaniesView({
               <Button
                 type="button"
                 onClick={handleAnalyze}
-                disabled={analyzing || !baseId}
+                disabled={analyzing || confirming || !baseId}
               >
                 <FileSearch data-icon="inline-start" />
                 {analyzing ? "Validando..." : "Validar e gerar prévia"}
@@ -594,10 +761,54 @@ export function ImportCompaniesView({
                 <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
               )}
               {confirming
-                ? "Importando..."
-                : `Confirmar importação de ${analysis.summary.eligibleRows} linhas elegíveis`}
+                ? importProgress?.phase === "preparing"
+                  ? "Preparando lotes..."
+                  : "Importando..."
+                : activeJobId
+                  ? "Retomar importação"
+                  : `Confirmar importação de ${analysis.summary.eligibleRows} linhas elegíveis`}
             </Button>
           </div>
+
+          {importProgress && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="space-y-2 border-t border-zinc-200 pt-4"
+            >
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="font-medium text-zinc-700">
+                  {importProgress.phase === "preparing"
+                    ? "Preparando dados"
+                    : "Importando empresas"}
+                </span>
+                <span className="tabular-nums text-zinc-500">
+                  {importProgress.phase === "preparing"
+                    ? importProgress.stagedRows
+                    : importProgress.processedRows}
+                  /{importProgress.eligibleRows}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-zinc-200">
+                <div
+                  className="h-full bg-zinc-900 transition-[width]"
+                  style={{
+                    width: `${
+                      importProgress.eligibleRows === 0
+                        ? 100
+                        : Math.round(
+                            ((importProgress.phase === "preparing"
+                              ? importProgress.stagedRows
+                              : importProgress.processedRows) /
+                              importProgress.eligibleRows) *
+                              100
+                          )
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -72,3 +72,38 @@ export type ImportActionInput = {
   fileName: string;
   csvText: string;
 };
+
+export type ImportJobSummaryInput = Pick<
+  ImportSummary,
+  | "totalRows"
+  | "invalidRows"
+  | "duplicateRows"
+  | "emptyRowsIgnored"
+  | "eligibleRows"
+>;
+
+export type StartImportJobInput = {
+  jobId: string;
+  baseId: string;
+  fileName: string;
+  fileHash: string;
+  summary: ImportJobSummaryInput;
+};
+
+export type ImportJobContext = Pick<
+  StartImportJobInput,
+  "jobId" | "baseId" | "fileHash"
+>;
+
+export type ImportJobStageRow = {
+  rowNumber: number;
+  data: ImportCompanyData;
+};
+
+export type ImportJobProgress = {
+  jobId: string;
+  status: string;
+  stagedRows: number;
+  processedRows: number;
+  eligibleRows: number;
+};

@@ -7,48 +7,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ImportJobStatus {
+  PREPARING
+  READY
+  PROCESSING
+  PAUSED
+  COMPLETED
+}
+
 model Base {
-  id             String    @id @default(cuid())
-  name           String
-  description    String?
+  id          String  @id @default(cuid())
+  name        String
+  description String?
 
-  segment        String?
-  state          String?
-  city           String?
+  segment String?
+  state   String?
+  city    String?
 
-  isActive       Boolean   @default(false)
+  isActive Boolean @default(false)
 
-  companiesCount Int       @default(0)
+  companiesCount Int @default(0)
 
-  companies      BaseCompany[]
+  companies  BaseCompany[]
+  importJobs ImportJob[]
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Company {
-  id            String   @id @default(cuid())
+  id String @id @default(cuid())
 
   corporateName String
   tradeName     String?
 
-  cnpj          String?  @unique
+  cnpj String? @unique
 
-  email         String?
-  phone         String?
-  website       String?
+  email   String?
+  phone   String?
+  website String?
 
-  segment       String?
+  segment String?
 
-  city          String?
-  state         String?
+  city  String?
+  state String?
 
-  contactName   String?
+  contactName String?
 
-  bases         BaseCompany[]
+  bases BaseCompany[]
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([cnpj])
   @@index([city])
@@ -58,14 +67,66 @@ model BaseCompany {
   baseId    String
   companyId String
 
-  status    String?  @default("Novo")
+  status String? @default("Novo")
 
-  base      Base     @relation(fields: [baseId], references: [id], onDelete: Cascade)
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  base    Base    @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@id([baseId, companyId])
   @@index([companyId])
+}
+
+model ImportJob {
+  id                      String          @id
+  baseId                  String
+  fileName                String
+  fileHash                String
+  status                  ImportJobStatus @default(PREPARING)
+  totalRows               Int
+  eligibleRows            Int
+  stagedRows              Int             @default(0)
+  processedRows           Int             @default(0)
+  invalidIgnored          Int
+  duplicatesIgnored       Int
+  emptyRowsIgnored        Int
+  companiesCreated        Int             @default(0)
+  existingCompaniesReused Int             @default(0)
+  linksCreated            Int             @default(0)
+  alreadyInBase           Int             @default(0)
+  conflictsPreserved      Int             @default(0)
+  failures                Int             @default(0)
+  lastError               String?
+
+  base Base           @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  rows ImportJobRow[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([baseId, fileHash])
+  @@index([status, updatedAt])
+}
+
+model ImportJobRow {
+  jobId         String
+  rowNumber     Int
+  cnpj          String
+  corporateName String
+  tradeName     String
+  segment       String
+  city          String
+  state         String
+  phone         String
+  email         String
+  website       String
+  processedAt   DateTime?
+
+  job ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@id([jobId, rowNumber])
+  @@unique([jobId, cnpj])
+  @@index([jobId, processedAt, rowNumber])
 }

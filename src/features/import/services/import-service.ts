@@ -3,6 +3,16 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import {
+  IMPORT_LOOKUP_BATCH_SIZE,
+  IMPORT_PROCESS_BATCH_SIZE,
+} from "../constants";
+import {
+  addImportBatchCounters,
+  chunkItems,
+  matchesImportJobIdentity,
+  summarizeMembershipBatch,
+} from "../lib/import-batching";
+import {
   COMPANY_FIELD_LABELS,
   isDuplicateCnpj,
   isEmptyCsvRow,
@@ -15,8 +25,12 @@ import type {
   ImportActionInput,
   ImportAnalysis,
   ImportCompanyData,
+  ImportJobContext,
+  ImportJobProgress,
+  ImportJobStageRow,
   ImportPreviewRow,
   ImportResult,
+  StartImportJobInput,
 } from "../types/import";
 
 type ParsedRow = {
@@ -117,6 +131,143 @@ function conflictLabels(conflicts: ReturnType<typeof mergeCompanyData>["conflict
   return conflicts.map((field) => COMPANY_FIELD_LABELS[field]);
 }
 
+type ImportJobWithBase = Prisma.ImportJobGetPayload<{
+  include: { base: { select: { id: true; name: true } } };
+}>;
+
+function jobProgress(job: {
+  id: string;
+  status: string;
+  stagedRows: number;
+  processedRows: number;
+  eligibleRows: number;
+}): ImportJobProgress {
+  return {
+    jobId: job.id,
+    status: job.status,
+    stagedRows: job.stagedRows,
+    processedRows: job.processedRows,
+    eligibleRows: job.eligibleRows,
+  };
+}
+
+function jobResult(job: ImportJobWithBase): ImportResult {
+  return {
+    base: job.base,
+    companiesCreated: job.companiesCreated,
+    existingCompaniesReused: job.existingCompaniesReused,
+    linksCreated: job.linksCreated,
+    alreadyInBase: job.alreadyInBase,
+    invalidIgnored: job.invalidIgnored,
+    duplicatesIgnored: job.duplicatesIgnored,
+    emptyRowsIgnored: job.emptyRowsIgnored,
+    conflictsPreserved: job.conflictsPreserved,
+    failures: job.failures,
+  };
+}
+
+async function lockImportJob(tx: Prisma.TransactionClient, jobId: string) {
+  await tx.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "public"."ImportJob" WHERE "id" = ${jobId} FOR UPDATE`
+  );
+}
+
+function assertImportJobIdentity(
+  job: { baseId: string; fileHash: string },
+  context: ImportJobContext
+) {
+  if (!matchesImportJobIdentity(job, context)) {
+    throw new ImportValidationError(
+      "Esta importação pertence a outra base ou a outro arquivo."
+    );
+  }
+}
+
+async function fillEmptyCompanyFields(
+  tx: Prisma.TransactionClient,
+  updates: Array<{ id: string; data: ImportCompanyData }>
+) {
+  if (updates.length === 0) {
+    return;
+  }
+
+  const values = updates.map(({ id, data }) =>
+    Prisma.sql`(
+      ${id},
+      ${data.corporateName},
+      ${data.tradeName},
+      ${data.segment},
+      ${data.city},
+      ${data.state},
+      ${data.phone},
+      ${data.email},
+      ${data.website}
+    )`
+  );
+
+  await tx.$executeRaw(
+    Prisma.sql`
+      UPDATE "public"."Company" AS company
+      SET
+        "corporateName" = CASE
+          WHEN BTRIM(company."corporateName") = '' AND incoming."corporateName" <> ''
+            THEN incoming."corporateName"
+          ELSE company."corporateName"
+        END,
+        "tradeName" = CASE
+          WHEN BTRIM(COALESCE(company."tradeName", '')) = '' AND incoming."tradeName" <> ''
+            THEN incoming."tradeName"
+          ELSE company."tradeName"
+        END,
+        "segment" = CASE
+          WHEN BTRIM(COALESCE(company."segment", '')) = '' AND incoming."segment" <> ''
+            THEN incoming."segment"
+          ELSE company."segment"
+        END,
+        "city" = CASE
+          WHEN BTRIM(COALESCE(company."city", '')) = '' AND incoming."city" <> ''
+            THEN incoming."city"
+          ELSE company."city"
+        END,
+        "state" = CASE
+          WHEN BTRIM(COALESCE(company."state", '')) = '' AND incoming."state" <> ''
+            THEN incoming."state"
+          ELSE company."state"
+        END,
+        "phone" = CASE
+          WHEN BTRIM(COALESCE(company."phone", '')) = '' AND incoming."phone" <> ''
+            THEN incoming."phone"
+          ELSE company."phone"
+        END,
+        "email" = CASE
+          WHEN BTRIM(COALESCE(company."email", '')) = '' AND incoming."email" <> ''
+            THEN incoming."email"
+          ELSE company."email"
+        END,
+        "website" = CASE
+          WHEN BTRIM(COALESCE(company."website", '')) = '' AND incoming."website" <> ''
+            THEN incoming."website"
+          ELSE company."website"
+        END,
+        "updatedAt" = CURRENT_TIMESTAMP
+      FROM (
+        VALUES ${Prisma.join(values)}
+      ) AS incoming(
+        "id",
+        "corporateName",
+        "tradeName",
+        "segment",
+        "city",
+        "state",
+        "phone",
+        "email",
+        "website"
+      )
+      WHERE company."id" = incoming."id"
+    `
+  );
+}
+
 export class ImportService {
   static async analyze(input: ImportActionInput): Promise<ImportAnalysis> {
     const parsed = parseCsv(input);
@@ -137,20 +288,29 @@ export class ImportService {
       )
     );
 
-    const existingCompanies = await prisma.company.findMany({
-      where: {
-        cnpj: {
-          in: validCnpjs,
-        },
-      },
-      include: {
-        bases: {
-          select: {
-            baseId: true,
+    const existingCompanies = [];
+
+    for (const cnpjBatch of chunkItems(validCnpjs, IMPORT_LOOKUP_BATCH_SIZE)) {
+      const companies = await prisma.company.findMany({
+        where: {
+          cnpj: {
+            in: cnpjBatch,
           },
         },
-      },
-    });
+        include: {
+          bases: {
+            where: {
+              baseId: base.id,
+            },
+            select: {
+              baseId: true,
+            },
+          },
+        },
+      });
+
+      existingCompanies.push(...companies);
+    }
     const companiesByCnpj = new Map(
       existingCompanies
         .filter((company) => company.cnpj)
@@ -283,146 +443,402 @@ export class ImportService {
     };
   }
 
-  static async confirm(input: ImportActionInput): Promise<ImportResult> {
-    const parsed = parseCsv(input);
+  static async startJob(input: StartImportJobInput) {
+    const base = await prisma.base.findUnique({
+      where: { id: input.baseId },
+      select: { id: true },
+    });
 
-    const execute = () =>
-      prisma.$transaction(
+    if (!base) {
+      throw new ImportValidationError("A base de destino não foi encontrada.");
+    }
+
+    const job = await prisma.importJob.upsert({
+      where: { id: input.jobId },
+      update: {},
+      create: {
+        id: input.jobId,
+        baseId: input.baseId,
+        fileName: input.fileName,
+        fileHash: input.fileHash,
+        totalRows: input.summary.totalRows,
+        eligibleRows: input.summary.eligibleRows,
+        invalidIgnored: input.summary.invalidRows,
+        duplicatesIgnored: input.summary.duplicateRows,
+        emptyRowsIgnored: input.summary.emptyRowsIgnored,
+      },
+      include: {
+        base: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    if (
+      job.baseId !== input.baseId ||
+      job.fileName !== input.fileName ||
+      job.fileHash !== input.fileHash ||
+      job.totalRows !== input.summary.totalRows ||
+      job.eligibleRows !== input.summary.eligibleRows ||
+      job.invalidIgnored !== input.summary.invalidRows ||
+      job.duplicatesIgnored !== input.summary.duplicateRows ||
+      job.emptyRowsIgnored !== input.summary.emptyRowsIgnored
+    ) {
+      throw new ImportValidationError(
+        "Não foi possível retomar esta importação com um arquivo diferente."
+      );
+    }
+
+    return {
+      progress: jobProgress(job),
+      result: job.status === "COMPLETED" ? jobResult(job) : null,
+    };
+  }
+
+  static async stageJobRows(
+    context: ImportJobContext,
+    rows: ImportJobStageRow[]
+  ) {
+    return prisma.$transaction(
+      async (tx) => {
+        await lockImportJob(tx, context.jobId);
+
+        const job = await tx.importJob.findUnique({
+          where: { id: context.jobId },
+        });
+
+        if (!job) {
+          throw new ImportValidationError("A importação não foi encontrada.");
+        }
+
+        assertImportJobIdentity(job, context);
+
+        if (job.status === "COMPLETED") {
+          return jobProgress(job);
+        }
+
+        const inserted = await tx.importJobRow.createMany({
+          data: rows.map((row) => ({
+            jobId: context.jobId,
+            rowNumber: row.rowNumber,
+            ...row.data,
+          })),
+          skipDuplicates: true,
+        });
+
+        const updated = await tx.importJob.update({
+          where: { id: context.jobId },
+          data: {
+            stagedRows: { increment: inserted.count },
+            status: inserted.count > 0 ? "PREPARING" : job.status,
+            lastError: null,
+          },
+        });
+
+        if (updated.stagedRows > updated.eligibleRows) {
+          throw new ImportValidationError(
+            "A quantidade de linhas preparadas excede a prévia validada."
+          );
+        }
+
+        return jobProgress(updated);
+      },
+      { maxWait: 5_000, timeout: 20_000 }
+    );
+  }
+
+  static async finalizeJob(context: ImportJobContext) {
+    return prisma.$transaction(
+      async (tx) => {
+        await lockImportJob(tx, context.jobId);
+
+        const job = await tx.importJob.findUnique({
+          where: { id: context.jobId },
+        });
+
+        if (!job) {
+          throw new ImportValidationError("A importação não foi encontrada.");
+        }
+
+        assertImportJobIdentity(job, context);
+
+        if (job.status === "COMPLETED") {
+          return jobProgress(job);
+        }
+
+        const stagedRows = await tx.importJobRow.count({
+          where: { jobId: context.jobId },
+        });
+
+        if (stagedRows !== job.eligibleRows) {
+          throw new ImportValidationError(
+            `A preparação recebeu ${stagedRows} de ${job.eligibleRows} linhas elegíveis. Tente retomar a importação.`
+          );
+        }
+
+        const updated = await tx.importJob.update({
+          where: { id: context.jobId },
+          data: {
+            stagedRows,
+            status: "READY",
+            lastError: null,
+          },
+        });
+
+        return jobProgress(updated);
+      },
+      { maxWait: 5_000, timeout: 20_000 }
+    );
+  }
+
+  static async processJobBatch(context: ImportJobContext) {
+    try {
+      return await prisma.$transaction(
         async (tx) => {
-          const base = await tx.base.findUnique({
-            where: { id: input.baseId },
-            select: { id: true, name: true },
+          await lockImportJob(tx, context.jobId);
+
+          const job = await tx.importJob.findUnique({
+            where: { id: context.jobId },
+            include: {
+              base: {
+                select: { id: true, name: true },
+              },
+            },
           });
 
-          if (!base) {
-            throw new ImportValidationError("A base de destino não foi encontrada.");
+          if (!job) {
+            throw new ImportValidationError("A importação não foi encontrada.");
           }
 
-          const seenCnpjs = new Set<string>();
-          let companiesCreated = 0;
-          let existingCompaniesReused = 0;
-          let linksCreated = 0;
-          let alreadyInBase = 0;
-          let invalidIgnored = 0;
-          let duplicatesIgnored = 0;
-          let conflictsPreserved = 0;
+          assertImportJobIdentity(job, context);
 
-          for (const row of parsed.rows) {
-            const { cnpj } = row.data;
+          if (job.status === "COMPLETED") {
+            return {
+              progress: jobProgress(job),
+              result: jobResult(job),
+            };
+          }
 
-            if (!cnpj || !isValidCnpj(cnpj)) {
-              invalidIgnored++;
-              continue;
-            }
+          if (job.status === "PREPARING") {
+            throw new ImportValidationError(
+              "A importação ainda está preparando os lotes."
+            );
+          }
 
-            if (isDuplicateCnpj(cnpj, seenCnpjs)) {
-              duplicatesIgnored++;
-              continue;
-            }
+          await tx.$queryRaw(
+            Prisma.sql`
+              SELECT "id"
+              FROM "public"."Base"
+              WHERE "id" = ${job.baseId}
+              FOR UPDATE
+            `
+          );
 
-            let companyWasCreated = false;
-            let company = await tx.company.findUnique({
-              where: { cnpj },
-            });
+          const rows = await tx.importJobRow.findMany({
+            where: { jobId: context.jobId, processedAt: null },
+            orderBy: { rowNumber: "asc" },
+            take: IMPORT_PROCESS_BATCH_SIZE,
+          });
 
-            if (company) {
-              const merge = mergeCompanyData(company, companyFields(row.data));
+          if (rows.length === 0) {
+            throw new ImportValidationError(
+              "A importação não possui um próximo lote consistente para processar."
+            );
+          }
 
-              if (merge.conflicts.length > 0) {
-                conflictsPreserved++;
-              }
-
-              if (Object.keys(merge.updates).length > 0) {
-                company = await tx.company.update({
-                  where: { id: company.id },
-                  data: merge.updates,
+          const cnpjs = rows.map((row) => row.cnpj);
+          const existingBefore = await tx.company.findMany({
+            where: { cnpj: { in: cnpjs } },
+            select: { cnpj: true },
+          });
+          const existingCnpjs = new Set(
+            existingBefore.flatMap((company) =>
+              company.cnpj ? [company.cnpj] : []
+            )
+          );
+          const newRows = rows
+            .filter((row) => !existingCnpjs.has(row.cnpj))
+            .sort((left, right) => left.cnpj.localeCompare(right.cnpj));
+          const createdCompanies =
+            newRows.length === 0
+              ? []
+              : await tx.company.createManyAndReturn({
+                  data: newRows.map((row) => ({
+                    cnpj: row.cnpj,
+                    corporateName:
+                      row.corporateName ||
+                      row.tradeName ||
+                      "Empresa sem razão social",
+                    tradeName: row.tradeName || null,
+                    segment: row.segment || null,
+                    city: row.city || null,
+                    state: row.state || null,
+                    phone: row.phone || null,
+                    email: row.email || null,
+                    website: row.website || null,
+                  })),
+                  skipDuplicates: true,
+                  select: { id: true, cnpj: true },
                 });
-              }
-            } else {
-              company = await tx.company.create({
-                data: {
-                  cnpj,
-                  corporateName:
-                    row.data.corporateName ||
-                    row.data.tradeName ||
-                    "Empresa sem razão social",
-                  tradeName: row.data.tradeName || null,
-                  segment: row.data.segment || null,
-                  city: row.data.city || null,
-                  state: row.data.state || null,
-                  phone: row.data.phone || null,
-                  email: row.data.email || null,
-                  website: row.data.website || null,
-                },
-              });
-              companiesCreated++;
-              companyWasCreated = true;
+
+          const companiesToLock = await tx.company.findMany({
+            where: { cnpj: { in: cnpjs } },
+            select: { id: true },
+          });
+          const companyIds = companiesToLock
+            .map((company) => company.id)
+            .sort();
+
+          await tx.$queryRaw(
+            Prisma.sql`
+              SELECT "id"
+              FROM "public"."Company"
+              WHERE "id" IN (${Prisma.join(companyIds)})
+              ORDER BY "id"
+              FOR UPDATE
+            `
+          );
+
+          const companies = await tx.company.findMany({
+            where: { id: { in: companyIds } },
+          });
+
+          if (companies.length !== rows.length) {
+            throw new Error("Nem todas as empresas do lote foram localizadas.");
+          }
+
+          const rowsByCnpj = new Map(rows.map((row) => [row.cnpj, row]));
+          const createdCompanyIds = new Set(
+            createdCompanies.map((company) => company.id)
+          );
+          let conflictsPreserved = 0;
+          const fieldUpdates: Array<{
+            id: string;
+            data: ImportCompanyData;
+          }> = [];
+
+          for (const company of companies) {
+            const row = company.cnpj ? rowsByCnpj.get(company.cnpj) : undefined;
+
+            if (!row || createdCompanyIds.has(company.id)) {
+              continue;
             }
 
-            const membership = await tx.baseCompany.findUnique({
-              where: {
-                baseId_companyId: {
-                  baseId: base.id,
-                  companyId: company.id,
-                },
-              },
-            });
+            const data = companyFields(row);
+            const merge = mergeCompanyData(company, data);
 
-            if (membership) {
-              alreadyInBase++;
-            } else {
-              await tx.baseCompany.create({
-                data: {
-                  baseId: base.id,
-                  companyId: company.id,
-                },
-              });
-              linksCreated++;
-
-              if (!companyWasCreated) {
-                existingCompaniesReused++;
-              }
+            if (merge.conflicts.length > 0) {
+              conflictsPreserved++;
             }
+
+            if (Object.keys(merge.updates).length > 0) {
+              fieldUpdates.push({ id: company.id, data: row });
+            }
+          }
+
+          await fillEmptyCompanyFields(tx, fieldUpdates);
+
+          const createdMemberships =
+            companies.length === 0
+              ? []
+              : await tx.baseCompany.createManyAndReturn({
+                  data: companies.map((company) => ({
+                    baseId: job.baseId,
+                    companyId: company.id,
+                  })),
+                  skipDuplicates: true,
+                  select: { companyId: true },
+                });
+          const membershipSummary = summarizeMembershipBatch(
+            companies.map((company) => company.id),
+            createdCompanyIds,
+            createdMemberships.map((membership) => membership.companyId)
+          );
+
+          const processed = await tx.importJobRow.updateMany({
+            where: {
+              jobId: context.jobId,
+              rowNumber: { in: rows.map((row) => row.rowNumber) },
+              processedAt: null,
+            },
+            data: { processedAt: new Date() },
+          });
+
+          if (processed.count !== rows.length) {
+            throw new Error("O lote mudou durante o processamento.");
+          }
+
+          const nextCounters = addImportBatchCounters(
+            {
+              processedRows: job.processedRows,
+              companiesCreated: job.companiesCreated,
+              existingCompaniesReused: job.existingCompaniesReused,
+              linksCreated: job.linksCreated,
+              alreadyInBase: job.alreadyInBase,
+              conflictsPreserved: job.conflictsPreserved,
+            },
+            {
+              processedRows: processed.count,
+              companiesCreated: createdCompanies.length,
+              existingCompaniesReused:
+                membershipSummary.existingCompaniesReused,
+              linksCreated: membershipSummary.linksCreated,
+              alreadyInBase: membershipSummary.alreadyInBase,
+              conflictsPreserved,
+            }
+          );
+          const completed = nextCounters.processedRows === job.eligibleRows;
+
+          if (nextCounters.processedRows > job.eligibleRows) {
+            throw new Error("O progresso excedeu a quantidade de linhas elegíveis.");
           }
 
           const companiesCount = await tx.baseCompany.count({
-            where: { baseId: base.id },
+            where: { baseId: job.baseId },
           });
 
           await tx.base.update({
-            where: { id: base.id },
+            where: { id: job.baseId },
             data: { companiesCount },
           });
 
+          const updated = await tx.importJob.update({
+            where: { id: context.jobId },
+            data: {
+              status: completed ? "COMPLETED" : "PROCESSING",
+              ...nextCounters,
+              lastError: null,
+            },
+            include: {
+              base: {
+                select: { id: true, name: true },
+              },
+            },
+          });
+
           return {
-            base,
-            companiesCreated,
-            existingCompaniesReused,
-            linksCreated,
-            alreadyInBase,
-            invalidIgnored,
-            duplicatesIgnored,
-            emptyRowsIgnored: parsed.emptyRows,
-            conflictsPreserved,
-            failures: 0,
+            progress: jobProgress(updated),
+            result: completed ? jobResult(updated) : null,
           };
         },
-        {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-          maxWait: 5_000,
-          timeout: 20_000,
-        }
+        { maxWait: 5_000, timeout: 20_000 }
       );
-
-    try {
-      return await execute();
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        (error.code === "P2002" || error.code === "P2034")
-      ) {
-        return execute();
-      }
+      await prisma.importJob
+        .updateMany({
+          where: {
+            id: context.jobId,
+            baseId: context.baseId,
+            fileHash: context.fileHash,
+            status: { not: "COMPLETED" },
+          },
+          data: {
+            status: "PAUSED",
+            lastError:
+              "O último lote não foi concluído e pode ser retomado com segurança.",
+          },
+        })
+        .catch(() => undefined);
 
       throw error;
     }
