@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test scripts/*.test.mjs",
-    "test:import": "node --test scripts/import-validation.test.mjs"
+    "test:import": "node --test scripts/import-validation.test.mjs",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
