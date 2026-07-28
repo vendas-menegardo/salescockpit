@@ -1,5 +1,6 @@
 ﻿import { prisma } from "@/lib/prisma";
 import type { CreateBaseInput } from "../validations/base-schema";
+import "server-only";
 
 export class BaseService {
   static async create(data: CreateBaseInput) {
