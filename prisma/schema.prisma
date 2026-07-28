@@ -20,7 +20,7 @@ model Base {
 
   companiesCount Int       @default(0)
 
-  companies      Company[]
+  companies      BaseCompany[]
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -28,9 +28,6 @@ model Base {
 
 model Company {
   id            String   @id @default(cuid())
-
-  baseId        String
-  base          Base     @relation(fields: [baseId], references: [id], onDelete: Cascade)
 
   corporateName String
   tradeName     String?
@@ -48,12 +45,27 @@ model Company {
 
   contactName   String?
 
-  status        String?  @default("Novo")
+  bases         BaseCompany[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([baseId])
   @@index([cnpj])
   @@index([city])
+}
+
+model BaseCompany {
+  baseId    String
+  companyId String
+
+  status    String?  @default("Novo")
+
+  base      Base     @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([baseId, companyId])
+  @@index([companyId])
 }

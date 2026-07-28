@@ -33,6 +33,38 @@ export class BaseService {
     });
   }
 
+  static async findByIdWithCompanies(id: string) {
+    const [base, companies] = await Promise.all([
+      prisma.base.findUnique({
+        where: {
+          id,
+        },
+      }),
+      prisma.baseCompany.findMany({
+        where: {
+          baseId: id,
+        },
+        include: {
+          company: true,
+        },
+        orderBy: {
+          company: {
+            corporateName: "asc",
+          },
+        },
+      }),
+    ]);
+
+    if (!base) {
+      return null;
+    }
+
+    return {
+      ...base,
+      companies,
+    };
+  }
+
   static async findActive() {
     return prisma.base.findFirst({
       where: {

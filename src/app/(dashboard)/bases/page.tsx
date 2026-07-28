@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,14 @@ export default async function BasesPage() {
           </p>
         </div>
 
-        <Link href="/bases/nova">
-          <Button>Nova Base</Button>
-        </Link>
+        <Button
+          size="lg"
+          nativeButton={false}
+          render={<Link href="/bases/nova" />}
+        >
+          <Plus data-icon="inline-start" />
+          Nova Base
+        </Button>
       </div>
 
       {bases.length === 0 ? (
@@ -80,22 +86,33 @@ export default async function BasesPage() {
               </CardContent>
 
               <CardFooter className="flex gap-2">
-                <Link href={`/bases/${base.id}/editar`}>
-                  <Button variant="outline">
-                    Editar
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href={`/bases/${base.id}`} />}
+                >
+                  Abrir
+                  <ArrowRight data-icon="inline-end" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href={`/bases/${base.id}/editar`} />}
+                >
+                  Editar
+                </Button>
 
                 {!base.isActive && (
                   <form action={setActiveBase.bind(null, base.id)}>
-                    <Button>
+                    <Button type="submit">
                       Ativar
                     </Button>
                   </form>
                 )}
 
                 <form action={deleteBase.bind(null, base.id)}>
-                  <Button variant="destructive">
+                  <Button type="submit" variant="destructive">
                     Excluir
                   </Button>
                 </form>

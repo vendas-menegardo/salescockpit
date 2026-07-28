@@ -3,15 +3,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   Building2,
   Database,
+  LayoutDashboard,
+  PhoneCall,
   Search,
   Settings,
   Upload,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const menu = [
+  {
+    name: "Dashboard",
+    href: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    name: "Operação",
+    href: "/operacao",
+    icon: PhoneCall,
+  },
   {
     name: "Bases",
     href: "/bases",
@@ -23,14 +37,24 @@ const menu = [
     icon: Building2,
   },
   {
-    name: "Busca",
-    href: "/busca",
+    name: "Pesquisa",
+    href: "/pesquisa",
     icon: Search,
   },
   {
     name: "Importação",
     href: "/importacao",
     icon: Upload,
+  },
+  {
+    name: "Relatórios",
+    href: "/relatorios",
+    icon: BarChart3,
+  },
+  {
+    name: "Usuários",
+    href: "/usuarios",
+    icon: Users,
   },
   {
     name: "Configurações",
@@ -43,26 +67,29 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 border-r border-zinc-200 bg-white">
+    <aside className="min-h-screen w-64 overflow-y-auto border-r border-zinc-200 bg-white">
       <div className="border-b border-zinc-200 p-6">
         <h1 className="text-2xl font-bold">
           Sales<span className="text-blue-600">Cockpit</span>
         </h1>
       </div>
 
-      <nav className="space-y-2 p-4">
+      <nav className="space-y-1 p-4 pb-8">
         {menu.map((item) => {
           const Icon = item.icon;
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(`${item.href}/`));
 
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-4 py-3 transition",
-                pathname === item.href
+                "flex items-center gap-3 rounded-lg px-4 py-3 outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset",
+                isActive
                   ? "bg-blue-600 text-white"
-                  : "hover:bg-zinc-100"
+                  : "bg-transparent hover:bg-zinc-100"
               )}
             >
               <Icon size={18} />

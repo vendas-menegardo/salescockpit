@@ -1,6 +1,13 @@
 "use client";
 
-import { Bell, Search, Settings } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Search, UserRound } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function AppHeader() {
   return (
@@ -18,17 +25,38 @@ export function AppHeader() {
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="rounded-lg p-2 hover:bg-zinc-100">
+        <button
+          type="button"
+          aria-label="Notificações"
+          className="rounded-lg p-2 hover:bg-zinc-100"
+        >
           <Bell size={20} />
         </button>
 
-        <button className="rounded-lg p-2 hover:bg-zinc-100">
-          <Settings size={20} />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            type="button"
+            aria-label="Abrir menu do perfil"
+            className="flex h-10 items-center gap-2 rounded-lg px-1.5 outline-none hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-semibold text-white">
+              B
+            </span>
+            <ChevronDown size={16} className="text-zinc-500" />
+          </DropdownMenuTrigger>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 font-semibold text-white">
-          B
-        </div>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem>
+              <UserRound />
+              Meu perfil
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <LogOut />
+              Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
