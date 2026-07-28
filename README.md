@@ -29,17 +29,22 @@ Acesse [http://localhost:3001](http://localhost:3001).
 
 ## Primeiro administrador
 
-Depois de aplicar a migration de autenticação em um banco isolado, configure as
-variáveis locais e execute o assistente oficial sem colocar a senha na linha de
-comando:
+Depois de aplicar a migration de autenticação na branch isolada autorizada, configure
+as variáveis locais e execute o comando do projeto:
 
 ```powershell
-npx auth@latest create-admin
+npm run create-admin
 ```
 
-Informe e-mail, nome, senha forte e perfil `admin` de forma interativa. Confirme no
-banco isolado que existe exatamente um usuário ADMIN ativo antes de testar o login.
-Não mantenha credenciais iniciais em scripts, documentação, Git ou histórico do shell.
+Nome, e-mail e senha são solicitados interativamente; a senha não aparece no terminal.
+O comando aceita somente o host isolado
+`ep-soft-sky-ac9ou8si-pooler.sa-east-1.aws.neon.tech`, bloqueia explicitamente
+produção e recusa a execução quando já existe um ADMIN ativo ou o e-mail está
+cadastrado. Ele usa `auth.api.createUser` do Better Auth e não implementa hash
+manualmente.
+
+Não passe credenciais como argumentos e não mantenha senhas em scripts, documentação,
+Git ou histórico do shell.
 
 ## Verificações
 

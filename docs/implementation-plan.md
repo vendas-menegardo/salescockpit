@@ -75,6 +75,8 @@ Proposta técnica inicial, ainda sujeita à aprovação das regras:
 - Branch isolada do Neon com as seis migrations aplicadas em ordem.
 - Variáveis `DATABASE_URL`, `BETTER_AUTH_SECRET` e `BETTER_AUTH_URL`.
 - Primeiro administrador criado após a migration de autenticação.
+- Bootstrap disponível por `npm run create-admin`, restrito à branch isolada e sem
+  credenciais em argumentos.
 - Revisão separada das vulnerabilidades indicadas por `npm audit`. Na auditoria de
   2026-07-28 foram reportadas 6 altas e 2 moderadas em cadeias de Next, Prisma,
   PostCSS, Sharp e MCP/Hono. A correção automática sugerida para Next é incompatível

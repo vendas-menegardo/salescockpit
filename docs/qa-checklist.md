@@ -7,6 +7,11 @@
 - [ ] Aplicar migrations somente em branch isolada e na ordem documentada.
 - [ ] Confirmar `BETTER_AUTH_SECRET` forte e diferente por ambiente.
 - [ ] Confirmar `BETTER_AUTH_URL` igual à origem do ambiente.
+- [ ] Confirmar que `npm run create-admin` bloqueia qualquer host diferente da branch
+  isolada autorizada.
+- [ ] Confirmar que o bootstrap recusa uma segunda conta quando já existe ADMIN ativo.
+- [ ] Confirmar que o bootstrap não aceita credenciais por argumentos.
+- [ ] Confirmar que a senha não é exibida nem registrada.
 
 ## Login e sessão
 

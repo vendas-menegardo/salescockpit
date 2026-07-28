@@ -92,3 +92,14 @@ regra de transferência ainda não definida.
 - A migration nova deve ser testada primeiro em uma branch isolada do Neon.
 - A aplicação não pode ser publicada antes da migration e da criação segura do
   primeiro administrador, pois as rotas internas passam a exigir as novas tabelas.
+
+## Bootstrap do primeiro administrador
+
+`npm run create-admin` é o único procedimento documentado para a conta inicial. O
+script carrega `.env`, aceita somente a branch Neon isolada autorizada, bloqueia os
+hosts direto e pooled de produção e não recebe credenciais por argumentos.
+
+Antes da escrita, ele verifica a ausência de ADMIN ativo. A decisão é repetida dentro
+de uma seção serializada por advisory lock para impedir dois bootstraps concorrentes.
+A criação usa a API server-side `auth.api.createUser` do Better Auth, que gera o hash
+e a conta de credencial. A senha é coletada sem eco e nunca é registrada.
