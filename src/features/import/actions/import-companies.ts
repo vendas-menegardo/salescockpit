@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { BaseService } from "@/features/bases/services/base-service";
+import { requireAdmin } from "@/lib/auth-session";
 import {
   ImportService,
   ImportValidationError,
@@ -140,6 +141,8 @@ function logUnexpectedError(operation: string, error: unknown) {
 }
 
 export async function analyzeCompaniesImport(input: ImportActionInput) {
+  await requireAdmin();
+
   try {
     const parsed = importInputSchema.parse(input);
     const analysis = await ImportService.analyze(parsed);
@@ -159,6 +162,8 @@ export async function analyzeCompaniesImport(input: ImportActionInput) {
 }
 
 export async function startCompaniesImportJob(input: unknown) {
+  await requireAdmin();
+
   try {
     const parsed = startImportJobSchema.parse(input);
     const response = await ImportService.startJob(parsed);
@@ -178,6 +183,8 @@ export async function startCompaniesImportJob(input: unknown) {
 }
 
 export async function stageCompaniesImportBatch(input: unknown) {
+  await requireAdmin();
+
   try {
     const parsed = stageImportJobSchema.parse(input);
     const progress = await ImportService.stageJobRows(
@@ -204,6 +211,8 @@ export async function stageCompaniesImportBatch(input: unknown) {
 }
 
 export async function finalizeCompaniesImportJob(input: unknown) {
+  await requireAdmin();
+
   try {
     const context = importJobContextSchema.parse(input);
     const progress = await ImportService.finalizeJob(context);
@@ -223,6 +232,8 @@ export async function finalizeCompaniesImportJob(input: unknown) {
 }
 
 export async function processCompaniesImportBatch(input: unknown) {
+  await requireAdmin();
+
   try {
     const context = importJobContextSchema.parse(input);
     const response = await ImportService.processJobBatch(context);
@@ -255,6 +266,8 @@ export async function createImportBase(input: {
   name: string;
   description?: string;
 }) {
+  await requireAdmin();
+
   try {
     const parsed = quickBaseSchema.parse(input);
     const base = await BaseService.create(parsed);

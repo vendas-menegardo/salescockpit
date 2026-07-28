@@ -12,10 +12,14 @@ import {
 } from "@/components/ui/card";
 
 import { BaseService } from "@/features/bases/services/base-service";
-import { setActiveBase } from "@/features/bases/actions/set-active-base";
-import { deleteBase } from "@/features/bases/actions/delete-base";
+import { isAdminRole } from "@/features/auth/lib/access-control";
+import { ActivateBaseButton } from "@/features/bases/components/activate-base-button";
+import { DeleteBaseButton } from "@/features/bases/components/delete-base-button";
+import { requireSession } from "@/lib/auth-session";
 
 export default async function BasesPage() {
+  const session = await requireSession();
+  const canManageBases = isAdminRole(session.user.role);
   const bases = await BaseService.findAll();
 
   return (
@@ -29,14 +33,16 @@ export default async function BasesPage() {
           </p>
         </div>
 
-        <Button
-          size="lg"
-          nativeButton={false}
-          render={<Link href="/bases/nova" />}
-        >
-          <Plus data-icon="inline-start" />
-          Nova Base
-        </Button>
+        {canManageBases && (
+          <Button
+            size="lg"
+            nativeButton={false}
+            render={<Link href="/bases/nova" />}
+          >
+            <Plus data-icon="inline-start" />
+            Nova Base
+          </Button>
+        )}
       </div>
 
       {bases.length === 0 ? (
@@ -95,27 +101,26 @@ export default async function BasesPage() {
                   <ArrowRight data-icon="inline-end" />
                 </Button>
 
-                <Button
-                  variant="outline"
-                  nativeButton={false}
-                  render={<Link href={`/bases/${base.id}/editar`} />}
-                >
-                  Editar
-                </Button>
-
-                {!base.isActive && (
-                  <form action={setActiveBase.bind(null, base.id)}>
-                    <Button type="submit">
-                      Ativar
+                {canManageBases && (
+                  <>
+                    <Button
+                      variant="outline"
+                      nativeButton={false}
+                      render={<Link href={`/bases/${base.id}/editar`} />}
+                    >
+                      Editar
                     </Button>
-                  </form>
-                )}
 
-                <form action={deleteBase.bind(null, base.id)}>
-                  <Button type="submit" variant="destructive">
-                    Excluir
-                  </Button>
-                </form>
+                    {!base.isActive && (
+                      <ActivateBaseButton baseId={base.id} />
+                    )}
+
+                    <DeleteBaseButton
+                      baseId={base.id}
+                      baseName={base.name}
+                    />
+                  </>
+                )}
               </CardFooter>
             </Card>
           ))}

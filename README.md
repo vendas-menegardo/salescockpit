@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SalesCockpit
 
-## Getting Started
+Aplicação interna para organizar bases, empresas, importações e a futura operação
+comercial da Menegardo.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Next.js 16 e React 19
+- TypeScript
+- Prisma 6
+- PostgreSQL
+- Better Auth
+- Tailwind CSS e Base UI
+
+## Ambiente local
+
+1. Instale as dependências com `npm install`.
+2. Crie um `.env` local a partir dos nomes documentados em `.env.example`.
+3. Use exclusivamente um banco isolado de desenvolvimento.
+4. Aplique as migrations no banco isolado conforme o procedimento aprovado.
+5. Crie o primeiro administrador.
+6. Inicie a aplicação:
+
+```powershell
+npm run dev -- -p 3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse [http://localhost:3001](http://localhost:3001).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Primeiro administrador
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Depois de aplicar a migration de autenticação na branch isolada autorizada, configure
+as variáveis locais e execute o comando do projeto:
 
-## Learn More
+```powershell
+npm run create-admin
+```
 
-To learn more about Next.js, take a look at the following resources:
+Nome, e-mail e senha são solicitados interativamente; a senha não aparece no terminal.
+O comando aceita somente o host isolado
+`ep-soft-sky-ac9ou8si-pooler.sa-east-1.aws.neon.tech`, bloqueia explicitamente
+produção e recusa a execução quando já existe um ADMIN ativo ou o e-mail está
+cadastrado. Ele usa `auth.api.createUser` do Better Auth e não implementa hash
+manualmente.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Não passe credenciais como argumentos e não mantenha senhas em scripts, documentação,
+Git ou histórico do shell.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Verificações
 
-## Deploy on Vercel
+```powershell
+npx prisma format
+npx prisma validate
+npx prisma generate
+npx next typegen
+npm run lint
+npx tsc --noEmit
+npm test
+npm run build
+git diff --check
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Documentação
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Mapa do produto](docs/product-map.md)
+- [Arquitetura](docs/architecture.md)
+- [Plano de implementação](docs/implementation-plan.md)
+- [Checklist de QA](docs/qa-checklist.md)
+
+## Produção
+
+Push para `main` pode iniciar deploy automático. Migrations e deploy exigem janela
+operacional, backup validado e aprovação explícita. Nenhuma migration deve ser
+executada em produção a partir do fluxo local de desenvolvimento.

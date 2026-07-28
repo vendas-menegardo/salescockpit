@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BaseService } from "@/features/bases/services/base-service";
 import { formatCnpj } from "@/features/import/lib/import-utils";
+import { isAdminRole } from "@/features/auth/lib/access-control";
+import { requireSession } from "@/lib/auth-session";
 
 type BaseDetailsPageProps = {
   params: Promise<{
@@ -16,6 +18,8 @@ type BaseDetailsPageProps = {
 export default async function BaseDetailsPage({
   params,
 }: BaseDetailsPageProps) {
+  const session = await requireSession();
+  const canManageBases = isAdminRole(session.user.role);
   const { id } = await params;
   const base = await BaseService.findByIdWithCompanies(id);
 
@@ -46,13 +50,15 @@ export default async function BaseDetailsPage({
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/bases/${base.id}/editar`} />}
-          >
-            Editar
-          </Button>
+          {canManageBases && (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/bases/${base.id}/editar`} />}
+            >
+              Editar
+            </Button>
+          )}
           <Button
             nativeButton={false}
             render={<Link href={`/empresas?baseId=${base.id}`} />}

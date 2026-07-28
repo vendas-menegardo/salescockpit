@@ -13,6 +13,7 @@ import {
   Upload,
   Users,
 } from "lucide-react";
+import { canAccessRoute } from "@/features/auth/lib/access-control";
 import { cn } from "@/lib/utils";
 
 const menu = [
@@ -63,11 +64,27 @@ const menu = [
   },
 ];
 
-export function AppSidebar() {
+type AppSidebarProps = {
+  className?: string;
+  onNavigate?: () => void;
+  role?: string | null;
+};
+
+export function AppSidebar({
+  className,
+  onNavigate,
+  role,
+}: AppSidebarProps) {
   const pathname = usePathname();
+  const visibleItems = menu.filter((item) => canAccessRoute(role, item.href));
 
   return (
-    <aside className="min-h-screen w-64 overflow-y-auto border-r border-zinc-200 bg-white">
+    <aside
+      className={cn(
+        "sticky top-0 h-screen w-64 shrink-0 overflow-y-auto border-r border-zinc-200 bg-white",
+        className
+      )}
+    >
       <div className="border-b border-zinc-200 p-6">
         <h1 className="text-2xl font-bold">
           Sales<span className="text-blue-600">Cockpit</span>
@@ -75,7 +92,7 @@ export function AppSidebar() {
       </div>
 
       <nav className="space-y-1 p-4 pb-8">
-        {menu.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive =
             pathname === item.href ||
@@ -85,6 +102,7 @@ export function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-4 py-3 outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset",
                 isActive

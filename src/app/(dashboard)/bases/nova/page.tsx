@@ -1,5 +1,8 @@
-﻿import { CreateBaseView } from "@/features/bases/components/create-base-view";
+import { CreateBaseView } from "@/features/bases/components/create-base-view";
+import { requireAdmin } from "@/lib/auth-session";
 
-export default function NovaBasePage() {
+export default async function NovaBasePage() {
+  await requireAdmin();
+
   return <CreateBaseView />;
 }

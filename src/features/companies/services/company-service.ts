@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { normalizeCnpj, normalizeText } from "@/features/import/lib/import-utils";
