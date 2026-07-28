@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
@@ -16,8 +16,9 @@ const protectedAdminPaths = [
 ];
 
 export function createSalesCockpitAuth(
-  database: PrismaClient,
+  database: PrismaClient | Prisma.TransactionClient,
   options: {
+    useAdapterTransactions?: boolean;
     useNextCookies: boolean;
   }
 ) {
@@ -27,7 +28,7 @@ export function createSalesCockpitAuth(
     baseURL: process.env.BETTER_AUTH_URL,
     database: prismaAdapter(database, {
       provider: "postgresql",
-      transaction: true,
+      transaction: options.useAdapterTransactions ?? true,
     }),
     emailAndPassword: {
       enabled: true,

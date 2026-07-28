@@ -5,8 +5,10 @@ import {
   ADMIN_CREATED_MESSAGE,
   ADMIN_ROLE,
   ALLOWED_DATABASE_HOST,
+  AdminBootstrapError,
   PRODUCTION_DATABASE_HOST,
   bootstrapFirstAdmin,
+  toSafeBootstrapError,
 } from "./lib/admin-bootstrap.ts";
 import { APP_ROLES } from "../src/features/auth/lib/access-control.ts";
 
@@ -24,6 +26,15 @@ function createDependencies(overrides = {}) {
   };
   const database = {
     countActiveAdmins: async () => 0,
+    createAdmin: async (credentials) => {
+      calls.createAdmin.push(credentials);
+
+      return {
+        user: {
+          role: ADMIN_ROLE,
+        },
+      };
+    },
     emailExists: async () => false,
     ...overrides.database,
   };
@@ -43,21 +54,13 @@ function createDependencies(overrides = {}) {
       };
     },
     runExclusive: async (operation) => operation(database),
-    createAdmin: async (credentials) => {
-      calls.createAdmin.push(credentials);
-
-      return {
-        user: {
-          role: ADMIN_ROLE,
-        },
-      };
-    },
     log: (message) => calls.logs.push(message),
     ...overrides.dependencies,
   };
 
   return {
     calls,
+    database,
     dependencies,
   };
 }
@@ -169,4 +172,65 @@ test("não inclui a senha em nenhuma mensagem de log", async () => {
 
   assert.equal(calls.logs.join("\n").includes(password), false);
   assert.deepEqual(calls.logs, [ADMIN_CREATED_MESSAGE]);
+});
+
+test("reproduz e sanitiza o P2010 causado pelo retorno void do lock antigo", async () => {
+  const prismaError = Object.assign(
+    new Error("Failed to deserialize column of type 'void'."),
+    {
+      code: "P2010",
+    }
+  );
+  const { calls, dependencies } = createDependencies({
+    dependencies: {
+      runExclusive: async () => {
+        throw prismaError;
+      },
+    },
+  });
+
+  await assert.rejects(
+    bootstrapFirstAdmin(dependencies),
+    (error) =>
+      error instanceof AdminBootstrapError &&
+      error.message ===
+        "Não foi possível obter o bloqueio seguro no banco isolado. O cadastro não foi iniciado."
+  );
+  assert.equal(calls.prompts, 1);
+  assert.equal(calls.createAdmin.length, 0);
+  assert.equal(
+    toSafeBootstrapError(prismaError).message.includes("P2010"),
+    false
+  );
+});
+
+test("reverte atomicamente User quando a credencial Account falha", async () => {
+  const state = {
+    accounts: 0,
+    users: 0,
+  };
+  const { database, dependencies } = createDependencies();
+  database.createAdmin = async () => {
+    state.users += 1;
+    throw new Error("ACCOUNT_CREATE_FAILED");
+  };
+  dependencies.runExclusive = async (operation) => {
+    const snapshot = { ...state };
+
+    try {
+      await operation(database);
+    } catch (error) {
+      Object.assign(state, snapshot);
+      throw error;
+    }
+  };
+
+  await assert.rejects(
+    bootstrapFirstAdmin(dependencies),
+    /transação foi revertida/
+  );
+  assert.deepEqual(state, {
+    accounts: 0,
+    users: 0,
+  });
 });

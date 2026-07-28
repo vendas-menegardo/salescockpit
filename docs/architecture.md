@@ -101,5 +101,7 @@ hosts direto e pooled de produção e não recebe credenciais por argumentos.
 
 Antes da escrita, ele verifica a ausência de ADMIN ativo. A decisão é repetida dentro
 de uma seção serializada por advisory lock para impedir dois bootstraps concorrentes.
-A criação usa a API server-side `auth.api.createUser` do Better Auth, que gera o hash
-e a conta de credencial. A senha é coletada sem eco e nunca é registrada.
+A criação usa a API server-side `auth.api.createUser` do Better Auth sobre o mesmo
+`TransactionClient` que mantém o lock. Assim, `User` e `Account` são confirmados ou
+revertidos juntos. O Better Auth gera o hash e a conta de credencial; a senha é
+coletada sem eco e nunca é registrada.

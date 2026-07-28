@@ -9,13 +9,10 @@ import {
   ADMIN_ROLE,
   AdminBootstrapError,
   bootstrapFirstAdmin,
+  toSafeBootstrapError,
 } from "./lib/admin-bootstrap";
 
 const bootstrapPrisma = new PrismaClient();
-const authPrisma = new PrismaClient();
-const auth = createSalesCockpitAuth(authPrisma, {
-  useNextCookies: false,
-});
 const bootstrapLockKey = 8_492_714;
 
 async function promptVisible(label: string) {
@@ -112,8 +109,14 @@ async function main() {
         bootstrapPrisma.$transaction(
           async (transaction) => {
             await transaction.$queryRaw`
-              SELECT pg_advisory_xact_lock(${bootstrapLockKey})
+              SELECT pg_advisory_xact_lock(${bootstrapLockKey})::text
+                AS "lockResult"
             `;
+
+            const transactionAuth = createSalesCockpitAuth(transaction, {
+              useAdapterTransactions: false,
+              useNextCookies: false,
+            });
 
             await operation({
               countActiveAdmins: () =>
@@ -137,6 +140,10 @@ async function main() {
                     },
                   })
                 ),
+              createAdmin: (credentials) =>
+                transactionAuth.api.createUser({
+                  body: credentials,
+                }),
             });
           },
           {
@@ -144,25 +151,13 @@ async function main() {
             timeout: 15_000,
           }
         ),
-      createAdmin: (credentials) =>
-        auth.api.createUser({
-          body: credentials,
-        }),
       log: (message) => console.log(message),
     });
   } catch (error) {
-    const message =
-      error instanceof AdminBootstrapError
-        ? error.message
-        : "Não foi possível concluir o bootstrap do administrador.";
-
-    console.error(message);
+    console.error(toSafeBootstrapError(error).message);
     process.exitCode = 1;
   } finally {
-    await Promise.all([
-      bootstrapPrisma.$disconnect(),
-      authPrisma.$disconnect(),
-    ]);
+    await bootstrapPrisma.$disconnect();
   }
 }
 

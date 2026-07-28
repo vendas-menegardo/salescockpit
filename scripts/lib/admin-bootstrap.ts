@@ -37,10 +37,6 @@ type Credentials = z.infer<typeof credentialsSchema>;
 
 type BootstrapDatabase = {
   countActiveAdmins: () => Promise<number>;
-  emailExists: (email: string) => Promise<boolean>;
-};
-
-type BootstrapDependencies = {
   createAdmin: (
     credentials: Credentials & { role: typeof ADMIN_ROLE }
   ) => Promise<{
@@ -48,6 +44,10 @@ type BootstrapDependencies = {
       role?: string | null;
     };
   }>;
+  emailExists: (email: string) => Promise<boolean>;
+};
+
+type BootstrapDependencies = {
   databaseUrl: string | undefined;
   log: (message: string) => void;
   preflight: Pick<BootstrapDatabase, "countActiveAdmins">;
@@ -93,6 +93,46 @@ export function validateDatabaseTarget(databaseUrl: string | undefined) {
   };
 }
 
+export function toSafeBootstrapError(error: unknown) {
+  if (error instanceof AdminBootstrapError) {
+    return error;
+  }
+
+  const code =
+    typeof error === "object" && error && "code" in error
+      ? String(error.code)
+      : "";
+  const message = error instanceof Error ? error.message : "";
+
+  if (code === "P2010" && message.includes("column of type 'void'")) {
+    return new AdminBootstrapError(
+      "Não foi possível obter o bloqueio seguro no banco isolado. O cadastro não foi iniciado."
+    );
+  }
+
+  if (["P1001", "P1002"].includes(code)) {
+    return new AdminBootstrapError(
+      "Não foi possível conectar ao banco isolado autorizado."
+    );
+  }
+
+  if (code === "P2021") {
+    return new AdminBootstrapError(
+      "As tabelas de autenticação ainda não estão disponíveis no banco isolado."
+    );
+  }
+
+  if (code === "P2028") {
+    return new AdminBootstrapError(
+      "A seção segura do bootstrap expirou antes da conclusão. Nenhum cadastro foi confirmado."
+    );
+  }
+
+  return new AdminBootstrapError(
+    "Não foi possível concluir o bootstrap no banco isolado. Nenhum cadastro foi confirmado."
+  );
+}
+
 export async function bootstrapFirstAdmin(
   dependencies: BootstrapDependencies
 ) {
@@ -114,44 +154,42 @@ export async function bootstrapFirstAdmin(
     );
   }
 
-  await dependencies.runExclusive(async (database) => {
-    if ((await database.countActiveAdmins()) > 0) {
-      throw new AdminBootstrapError(
-        "Bootstrap recusado: já existe um administrador ativo."
-      );
-    }
+  try {
+    await dependencies.runExclusive(async (database) => {
+      if ((await database.countActiveAdmins()) > 0) {
+        throw new AdminBootstrapError(
+          "Bootstrap recusado: já existe um administrador ativo."
+        );
+      }
 
-    if (await database.emailExists(parsedCredentials.data.email)) {
-      throw new AdminBootstrapError(
-        "Bootstrap recusado: o e-mail já está cadastrado."
-      );
-    }
-
-    let result;
-
-    try {
-      result = await dependencies.createAdmin({
-        ...parsedCredentials.data,
-        role: ADMIN_ROLE,
-      });
-    } catch {
       if (await database.emailExists(parsedCredentials.data.email)) {
         throw new AdminBootstrapError(
           "Bootstrap recusado: o e-mail já está cadastrado."
         );
       }
 
-      throw new AdminBootstrapError(
-        "Não foi possível criar o administrador no banco isolado."
-      );
-    }
+      let result;
 
-    if (result.user?.role !== ADMIN_ROLE) {
-      throw new AdminBootstrapError(
-        "A conta foi criada sem o perfil administrativo esperado."
-      );
-    }
-  });
+      try {
+        result = await database.createAdmin({
+          ...parsedCredentials.data,
+          role: ADMIN_ROLE,
+        });
+      } catch {
+        throw new AdminBootstrapError(
+          "O Better Auth não conseguiu criar a credencial administrativa. A transação foi revertida."
+        );
+      }
+
+      if (result.user?.role !== ADMIN_ROLE) {
+        throw new AdminBootstrapError(
+          "A conta retornou sem o perfil administrativo esperado. A transação foi revertida."
+        );
+      }
+    });
+  } catch (error) {
+    throw toSafeBootstrapError(error);
+  }
 
   dependencies.log(ADMIN_CREATED_MESSAGE);
 }
