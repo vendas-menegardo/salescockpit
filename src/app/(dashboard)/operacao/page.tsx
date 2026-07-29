@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/common/page-header";
@@ -93,6 +94,8 @@ export default async function OperacaoPage({
             queue={workspace.queue}
             baseId={workspace.selectedBaseId}
             view={view}
+            idempotencyKey={randomUUID()}
+            callIdempotencyKey={randomUUID()}
             operationScript={
               workspace.bases.find(
                 (base) => base.id === workspace.selectedBaseId
