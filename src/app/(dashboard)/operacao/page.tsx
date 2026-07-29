@@ -28,47 +28,63 @@ export default async function OperacaoPage({
   });
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Operação"
-        description="Trabalhe a fila comercial da base selecionada."
-      />
+    <div className="flex min-h-0 flex-col gap-3 lg:h-full lg:overflow-hidden">
+      <div className="grid shrink-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,36rem)] lg:items-end">
+        <PageHeader
+          title="Operação"
+          description="Trabalhe a fila comercial da base selecionada."
+        />
 
-      <form className="flex max-w-xl flex-wrap items-end gap-2">
-        <label className="grid min-w-64 flex-1 gap-1 text-sm">
-          Base
-          <select
-            name="baseId"
-            defaultValue={workspace.selectedBaseId ?? ""}
-            className="h-9 rounded-lg border border-input bg-white px-2.5"
-          >
-            {workspace.bases.map((base) => (
-              <option key={base.id} value={base.id}>
-                {base.name} ({base.companiesCount.toLocaleString("pt-BR")})
-              </option>
-            ))}
-          </select>
-        </label>
-        <input type="hidden" name="view" value={view} />
-        <Button type="submit">Selecionar</Button>
-      </form>
-
-      <nav className="flex flex-wrap gap-2" aria-label="Visões da fila">
-        {OPERATION_VIEWS.map((item) => (
-          <Button
-            key={item.value}
-            variant={view === item.value ? "default" : "outline"}
-            nativeButton={false}
-            render={
-              <Link
-                href={`/operacao?baseId=${workspace.selectedBaseId ?? ""}&view=${item.value}`}
-              />
-            }
-          >
-            {item.label}
+        <form className="flex min-w-0 items-end gap-2">
+          <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+            <span className="shrink-0 font-medium text-zinc-600">Base</span>
+            <select
+              name="baseId"
+              defaultValue={workspace.selectedBaseId ?? ""}
+              className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-white px-2.5"
+            >
+              {workspace.bases.map((base) => (
+                <option key={base.id} value={base.id}>
+                  {base.name} ({base.companiesCount.toLocaleString("pt-BR")})
+                </option>
+              ))}
+            </select>
+          </label>
+          <input type="hidden" name="view" value={view} />
+          <Button type="submit" size="sm">
+            Selecionar
           </Button>
-        ))}
-      </nav>
+        </form>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-3">
+        <nav
+          className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-1"
+          aria-label="Visões da fila"
+        >
+          {OPERATION_VIEWS.map((item) => (
+            <Button
+              key={item.value}
+              size="sm"
+              variant={view === item.value ? "default" : "outline"}
+              nativeButton={false}
+              render={
+                <Link
+                  href={`/operacao?baseId=${workspace.selectedBaseId ?? ""}&view=${item.value}`}
+                />
+              }
+            >
+              {item.label}
+            </Button>
+          ))}
+        </nav>
+        {workspace.selectedBaseId && (
+          <p className="hidden shrink-0 text-xs text-zinc-500 xl:block">
+            {workspace.total.toLocaleString("pt-BR")} empresa
+            {workspace.total === 1 ? "" : "s"} nesta fila
+          </p>
+        )}
+      </div>
 
       {!workspace.selectedBaseId ? (
         <EmptyState
@@ -81,11 +97,10 @@ export default async function OperacaoPage({
           description="Não há empresas nesta visão para a base selecionada."
         />
       ) : (
-        <>
-          <p className="text-sm text-zinc-500">
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <p className="shrink-0 text-xs text-zinc-500 xl:hidden">
             {workspace.total.toLocaleString("pt-BR")} empresa
-            {workspace.total === 1 ? "" : "s"} nesta fila. Mostrando até 50
-            para navegação imediata.
+            {workspace.total === 1 ? "" : "s"} nesta fila
           </p>
           <OperationWorkspace
             key={workspace.current.companyId}
@@ -102,7 +117,7 @@ export default async function OperacaoPage({
               )?.operationScript ?? null
             }
           />
-        </>
+        </div>
       )}
     </div>
   );

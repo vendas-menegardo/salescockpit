@@ -143,19 +143,20 @@ export function OperationWorkspace({
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="space-y-5 rounded-lg border border-zinc-200 bg-white p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">
+    <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_21rem]">
+      <section className="flex min-h-0 flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4">
+        <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-semibold">
               {current.company.corporateName}
             </h2>
-            <p className="text-sm text-zinc-500">
+            <p className="mt-0.5 text-sm text-zinc-500">
               {[current.company.city, current.company.state]
                 .filter(Boolean)
                 .join("/") || "Localidade não informada"}
+              {current.company.cnpj ? ` · ${current.company.cnpj}` : ""}
             </p>
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="mt-0.5 truncate text-sm text-zinc-500">
               {current.company.segment || "Segmento não informado"}
               {current.company.email ? ` · ${current.company.email}` : ""}
             </p>
@@ -163,7 +164,7 @@ export function OperationWorkspace({
           <Badge>{COMMERCIAL_STAGE_LABELS[current.stage]}</Badge>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           {availablePhones.length > 0 ? (
             <select
               aria-label="Telefone da ligação"
@@ -256,18 +257,10 @@ export function OperationWorkspace({
           </p>
         )}
 
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
-          <h3 className="text-sm font-semibold">Roteiro comercial</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-600">
-            {operationScript ||
-              "Nenhum roteiro foi configurado para esta base. O administrador pode adicioná-lo ao editar a base."}
-          </p>
-        </div>
-
         <form
           id="operation-interaction-form"
           action={action}
-          className="grid gap-4"
+          className="grid min-h-0 gap-3"
         >
           <input type="hidden" name="baseId" value={baseId} />
           <input type="hidden" name="companyId" value={current.companyId} />
@@ -279,13 +272,13 @@ export function OperationWorkspace({
             value={callState.interactionId || ""}
           />
           <input type="hidden" name="contactUsed" value={phone || ""} />
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-2">
             <label className="grid gap-1 text-sm">
               Resultado
               <select
                 name="result"
                 required
-                className="h-9 rounded-lg border border-input bg-transparent px-2.5"
+                className="h-8 rounded-lg border border-input bg-transparent px-2.5"
                 defaultValue=""
               >
                 <option value="" disabled>
@@ -305,7 +298,7 @@ export function OperationWorkspace({
               <select
                 name="nextStage"
                 required
-                className="h-9 rounded-lg border border-input bg-transparent px-2.5"
+                className="h-8 rounded-lg border border-input bg-transparent px-2.5"
                 defaultValue={current.stage}
               >
                 {Object.entries(COMMERCIAL_STAGE_LABELS).map(
@@ -320,15 +313,19 @@ export function OperationWorkspace({
           </div>
           <label className="grid gap-1 text-sm">
             Observação
-            <Textarea name="notes" maxLength={2000} />
+            <Textarea
+              name="notes"
+              maxLength={2000}
+              className="max-h-20 min-h-14 resize-none overflow-y-auto"
+            />
           </label>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-2">
             <label className="grid gap-1 text-sm">
               Data e hora do retorno
               <input
                 type="datetime-local"
                 name="followUpAt"
-                className="h-9 rounded-lg border border-input bg-transparent px-2.5"
+                className="h-8 rounded-lg border border-input bg-transparent px-2.5"
               />
             </label>
             <label className="grid gap-1 text-sm">
@@ -336,7 +333,7 @@ export function OperationWorkspace({
               <input
                 name="followUpReason"
                 maxLength={500}
-                className="h-9 rounded-lg border border-input bg-transparent px-2.5"
+                className="h-8 rounded-lg border border-input bg-transparent px-2.5"
               />
             </label>
           </div>
@@ -346,7 +343,7 @@ export function OperationWorkspace({
             </p>
           )}
         </form>
-        <div className="flex flex-wrap justify-between gap-2">
+        <div className="flex shrink-0 flex-wrap justify-between gap-2 border-t border-zinc-100 pt-3">
           <div className="flex gap-2">
             <CursorButton
               label="Anterior"
@@ -378,33 +375,49 @@ export function OperationWorkspace({
         </div>
       </section>
 
-      <aside className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
-        <h2 className="font-semibold">Histórico recente</h2>
-        {current.company.interactions.length === 0 ? (
-          <p className="text-sm text-zinc-500">Nenhuma interação registrada.</p>
-        ) : (
-          current.company.interactions.map((interaction) => (
-            <article
-              key={interaction.id}
-              className="border-t border-zinc-100 pt-3 text-sm first:border-0 first:pt-0"
-            >
-              <strong>
-                {interaction.result
-                  ? INTERACTION_RESULT_LABELS[
-                      interaction.result as InteractionResult
-                    ]
-                  : "Ligação iniciada"}
-              </strong>
-              <p className="text-zinc-500">
-                {interaction.user.name} ·{" "}
-                {new Date(interaction.createdAt).toLocaleString("pt-BR")}
+      <aside className="grid min-h-0 gap-3 rounded-lg border border-zinc-200 bg-white p-4 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+        <section>
+          <h2 className="text-sm font-semibold">Roteiro comercial</h2>
+          <p className="mt-1.5 whitespace-pre-wrap text-sm text-zinc-600 lg:max-h-24 lg:overflow-y-auto">
+            {operationScript ||
+              "Nenhum roteiro foi configurado para esta base. O administrador pode adicioná-lo ao editar a base."}
+          </p>
+        </section>
+
+        <section className="min-h-0 border-t border-zinc-100 pt-3">
+          <h2 className="font-semibold">Histórico recente</h2>
+          <div className="mt-2 space-y-3 lg:h-[calc(100%-2rem)] lg:overflow-y-auto lg:pr-1">
+            {current.company.interactions.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                Nenhuma interação registrada.
               </p>
-              {interaction.notes && (
-                <p className="mt-1 whitespace-pre-wrap">{interaction.notes}</p>
-              )}
-            </article>
-          ))
-        )}
+            ) : (
+              current.company.interactions.map((interaction) => (
+                <article
+                  key={interaction.id}
+                  className="border-t border-zinc-100 pt-3 text-sm first:border-0 first:pt-0"
+                >
+                  <strong>
+                    {interaction.result
+                      ? INTERACTION_RESULT_LABELS[
+                          interaction.result as InteractionResult
+                        ]
+                      : "Ligação iniciada"}
+                  </strong>
+                  <p className="text-zinc-500">
+                    {interaction.user.name} ·{" "}
+                    {new Date(interaction.createdAt).toLocaleString("pt-BR")}
+                  </p>
+                  {interaction.notes && (
+                    <p className="mt-1 whitespace-pre-wrap">
+                      {interaction.notes}
+                    </p>
+                  )}
+                </article>
+              ))
+            )}
+          </div>
+        </section>
       </aside>
     </div>
   );

@@ -81,17 +81,17 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "sticky top-0 h-screen w-64 shrink-0 overflow-y-auto border-r border-zinc-200 bg-white",
+        "sticky top-0 h-dvh w-64 shrink-0 overflow-y-auto border-r border-zinc-200 bg-white",
         className
       )}
     >
-      <div className="border-b border-zinc-200 p-6">
-        <h1 className="text-2xl font-bold">
+      <div className="flex h-14 items-center border-b border-zinc-200 px-5">
+        <h1 className="text-xl font-bold">
           Sales<span className="text-blue-600">Cockpit</span>
         </h1>
       </div>
 
-      <nav className="space-y-1 p-4 pb-8">
+      <nav className="space-y-1 p-3 pb-6">
         {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -104,7 +104,7 @@ export function AppSidebar({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-4 py-3 outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset",
                 isActive
                   ? "bg-blue-600 text-white"
                   : "bg-transparent hover:bg-zinc-100"

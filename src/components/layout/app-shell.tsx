@@ -24,7 +24,7 @@ export function AppShell({ children, user }: AppShellProps) {
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-zinc-50">
+    <div className="flex min-h-dvh bg-zinc-50 lg:h-dvh lg:min-h-0 lg:overflow-hidden">
       <AppSidebar className="hidden lg:block" role={user.role} />
 
       <Sheet
@@ -44,12 +44,14 @@ export function AppShell({ children, user }: AppShellProps) {
         </SheetContent>
       </Sheet>
 
-      <div className="min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppHeader
           onOpenNavigation={() => setMobileNavigationOpen(true)}
           user={user}
         />
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-5 xl:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );
