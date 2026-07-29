@@ -26,20 +26,29 @@ essa operação.
 - Estados globais de carregamento e erro.
 - Documentação e exemplo de ambiente sem segredos.
 
+## Segundo checkpoint implementado
+
+- Dashboard real com período, base e usuário para ADMIN.
+- Funil, pendências e indicadores de qualidade derivados do histórico.
+- Relatórios com filtros, histórico, empresas e exportação CSV integral.
+- Pesquisa paginada com filtros de cadastro e completude.
+- Edição do dossiê com auditoria de campos e completude.
+- Contrato de provedor e jobs persistentes preparados sem dados fictícios.
+
 ## Parcial
 
 - Bases: CRUD e vínculos funcionam; detalhe agora é paginado.
-- Empresas: busca, filtro, paginação e dossiê funcionam; edição cadastral ampla ainda
-  está pendente.
+- Empresas: busca, filtro, paginação, dossiê e edição auditada funcionam.
 - Importação: fluxo funcional; os testes de integração exigem banco isolado.
 - Operação: núcleo funcional; política administrativa de atribuição ainda pendente.
-- Dashboard: autenticado; indicadores reais ainda pendentes.
+- Busca/enriquecimento: pesquisa local funcional; execução externa depende da escolha
+  e configuração de um provedor.
 - Configurações: rota protegida, sem opções persistentes.
 
 ## Próximo marco recomendado
 
-Validar o núcleo da Operação em banco isolado e então alimentar Dashboard, Pesquisa
-e Relatórios somente com métricas reais.
+Definir a política de liberação/redistribuição de empresas atribuídas e escolher um
+provedor de enriquecimento com contrato, limites e credenciais aprovados.
 
 ## Decisões do proprietário
 

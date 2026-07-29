@@ -125,7 +125,6 @@ export default async function EmpresasPage({
                     <td className="px-4 py-3 font-mono text-xs">
                       {formatCnpj(company.cnpj)}
                     </td>
-                    <td className="px-4 py-3">{company.segment || "-"}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium">{company.corporateName}</div>
                       {company.tradeName && (
@@ -134,6 +133,7 @@ export default async function EmpresasPage({
                         </div>
                       )}
                     </td>
+                    <td className="px-4 py-3">{company.segment || "-"}</td>
                     <td className="px-4 py-3">
                       {[company.city, company.state].filter(Boolean).join("/") ||
                         "-"}

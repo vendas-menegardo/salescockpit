@@ -42,6 +42,8 @@ export async function saveInteraction(
     });
     revalidatePath("/operacao");
     revalidatePath(`/empresas/${parsed.data.companyId}`);
+    revalidatePath("/");
+    revalidatePath("/relatorios");
     return { success: true };
   } catch (error) {
     if (

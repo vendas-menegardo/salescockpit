@@ -79,14 +79,26 @@ enum ContactValidity {
   INVALID
 }
 
+enum CompanyChangeOrigin {
+  MANUAL
+  PROVIDER
+}
+
+enum EnrichmentJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
-  id                  String             @id
+  id                  String              @id
   name                String
-  email               String             @unique
-  emailVerified       Boolean            @default(false)
+  email               String              @unique
+  emailVerified       Boolean             @default(false)
   image               String?
-  role                String             @default("user")
-  banned              Boolean            @default(false)
+  role                String              @default("user")
+  banned              Boolean             @default(false)
   banReason           String?
   banExpires          DateTime?
   sessions            Session[]
@@ -95,10 +107,12 @@ model User {
   interactions        SalesInteraction[]
   followUps           FollowUpTask[]
   operationCursors    OperationCursor[]
-  assignedMemberships BaseCompany[]      @relation("AssignedMemberships")
+  assignedMemberships BaseCompany[]       @relation("AssignedMemberships")
+  companyDataChanges  CompanyDataChange[]
+  enrichmentJobs      EnrichmentJob[]
   api4ComExtension    String?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
   @@index([role, banned])
 }
@@ -205,6 +219,9 @@ model Company {
   interactions     SalesInteraction[]
   followUps        FollowUpTask[]
   operationCursors OperationCursor[]
+
+  dataChanges     CompanyDataChange[]
+  enrichmentItems EnrichmentJobItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -338,6 +355,66 @@ model OperationCursor {
 
   @@id([userId, baseId])
   @@index([currentCompanyId])
+}
+
+model CompanyDataChange {
+  id                 String              @id @default(cuid())
+  companyId          String
+  userId             String?
+  origin             CompanyChangeOrigin @default(MANUAL)
+  provider           String?
+  changedFields      Json
+  completenessBefore Int
+  completenessAfter  Int
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([origin, createdAt])
+}
+
+model EnrichmentJob {
+  id           String              @id @default(cuid())
+  userId       String
+  provider     String
+  status       EnrichmentJobStatus @default(PENDING)
+  filters      Json?
+  totalItems   Int                 @default(0)
+  processed    Int                 @default(0)
+  failed       Int                 @default(0)
+  errorMessage String?
+
+  user  User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items EnrichmentJobItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, updatedAt])
+}
+
+model EnrichmentJobItem {
+  jobId        String
+  companyId    String
+  status       EnrichmentJobStatus @default(PENDING)
+  preview      Json?
+  appliedAt    DateTime?
+  errorMessage String?
+
+  job     EnrichmentJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([jobId, companyId])
+  @@index([companyId, status])
+  @@index([jobId, status])
 }
 
 model ImportJob {

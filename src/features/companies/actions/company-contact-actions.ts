@@ -56,6 +56,8 @@ export async function addCompanyContact(
         data: {
           ...parsed.data,
           createdByUserId: session.user.id,
+          validatedAt:
+            parsed.data.validity === "UNKNOWN" ? null : new Date(),
         },
       });
     });
@@ -70,6 +72,9 @@ export async function addCompanyContact(
   }
 
   revalidatePath(`/empresas/${parsed.data.companyId}`);
+  revalidatePath("/pesquisa");
+  revalidatePath("/");
+  revalidatePath("/relatorios");
   return { success: true };
 }
 
@@ -113,4 +118,7 @@ export async function updateCompanyContact(formData: FormData) {
   });
 
   revalidatePath(`/empresas/${contact.companyId}`);
+  revalidatePath("/pesquisa");
+  revalidatePath("/");
+  revalidatePath("/relatorios");
 }

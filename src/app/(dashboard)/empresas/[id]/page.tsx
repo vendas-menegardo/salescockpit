@@ -5,6 +5,7 @@ import { ArrowLeft, Building2, Clock3, ContactRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AddContactForm } from "@/features/companies/components/add-contact-form";
+import { EditCompanyProfileForm } from "@/features/companies/components/edit-company-profile-form";
 import { updateCompanyContact } from "@/features/companies/actions/company-contact-actions";
 import { CompanyService } from "@/features/companies/services/company-service";
 import { calculateCompanyCompleteness } from "@/features/companies/lib/company-completeness";
@@ -103,6 +104,7 @@ export default async function CompanyDetailsPage({
               </Badge>
             ))}
           </div>
+          <EditCompanyProfileForm company={company} />
         </div>
 
         <div className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
@@ -191,6 +193,44 @@ export default async function CompanyDetailsPage({
                     {interaction.notes}
                   </p>
                 )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <Building2 size={18} /> Histórico de enriquecimento
+        </h2>
+        {company.dataChanges.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            Nenhuma alteração de cadastro registrada.
+          </p>
+        ) : (
+          <div className="divide-y divide-zinc-100">
+            {company.dataChanges.map((change) => (
+              <article key={change.id} className="py-3 text-sm">
+                <strong>
+                  {Object.keys(change.changedFields as object).length} campo
+                  {Object.keys(change.changedFields as object).length === 1
+                    ? ""
+                    : "s"}{" "}
+                  atualizado
+                  {Object.keys(change.changedFields as object).length === 1
+                    ? ""
+                    : "s"}
+                </strong>
+                <p className="mt-1 text-zinc-500">
+                  {change.user?.name || "Sistema"} ·{" "}
+                  {new Intl.DateTimeFormat("pt-BR", {
+                    timeZone: "America/Sao_Paulo",
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  }).format(change.createdAt)}{" "}
+                  · completude {change.completenessBefore}% para{" "}
+                  {change.completenessAfter}%
+                </p>
               </article>
             ))}
           </div>
