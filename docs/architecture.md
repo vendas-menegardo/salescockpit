@@ -1,5 +1,33 @@
 # Arquitetura
 
+## Núcleo comercial
+
+A migration `20260729113000_add_commercial_operation` é aditiva. Ela preserva
+`Company`, `Base`, `BaseCompany`, importações e seus dados, adicionando:
+
+- `CompanyContact`: múltiplos contatos por empresa.
+- `SalesInteraction`: histórico por empresa, base e usuário, com origem e
+  idempotência.
+- `FollowUpTask`: retorno com responsável, prazo, motivo e estado.
+- `OperationCursor`: posição de navegação por usuário e base.
+- `BaseCompany.stage`, responsável opcional e data da última interação.
+
+O campo legado `BaseCompany.status` foi mantido por compatibilidade. Vínculos
+existentes recebem `NOVA` por padrão, sem backfill destrutivo.
+
+Cada atendimento manual usa uma transação curta. A chave `idempotencyKey` é única;
+a associação é atualizada com condição sobre estágio e responsável. Conflitos
+revertem interação, retorno e cursor. A primeira gravação atribui a associação ao
+operador; expiração e redistribuição dessa atribuição ainda dependem de regra de
+negócio.
+
+## API4Com
+
+O token e o ramal são lidos somente no servidor. A discagem usa o endpoint oficial
+e correlaciona o webhook por IDs internos. O webhook exige segredo próprio, valida
+o payload e ignora repetição após o encerramento. As variáveis opcionais são
+`API4COM_TOKEN`, `API4COM_EXTENSION` e `API4COM_WEBHOOK_SECRET`.
+
 ## Aplicação
 
 O SalesCockpit usa Next.js 16 App Router, React 19, TypeScript, Prisma 6 e PostgreSQL.

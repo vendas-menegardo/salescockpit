@@ -1,5 +1,18 @@
 # Plano de implementação
 
+## Checkpoint comercial implementado
+
+- Paginação no servidor para Empresas e detalhe de Base.
+- Dossiê com contatos e histórico.
+- Fila comercial por base e visão.
+- Registro atômico e idempotente de interação, estágio, retorno e cursor.
+- Adaptador API4Com e webhook, com fallback manual.
+
+O próximo passo operacional é aplicar e validar a migration primeiro em uma branch
+isolada do Neon, executar QA com dois usuários e decidir expiração/liberação de
+atribuições. Dashboard, Pesquisa e Relatórios devem usar os dados reais gerados por
+essa operação.
+
 ## Concluído nesta entrega
 
 - Auditoria de rotas, navegação, componentes, ações, serviços, schema e migrations.
@@ -15,24 +28,18 @@
 
 ## Parcial
 
-- Bases: CRUD e vínculos funcionam; detalhe ainda carrega todos os vínculos.
-- Empresas: busca e filtro funcionam; falta paginação, detalhe e ações autorizadas.
+- Bases: CRUD e vínculos funcionam; detalhe agora é paginado.
+- Empresas: busca, filtro, paginação e dossiê funcionam; edição cadastral ampla ainda
+  está pendente.
 - Importação: fluxo funcional; os testes de integração exigem banco isolado.
-- Dashboard: autenticado, mas sem indicadores por falta de modelo operacional.
+- Operação: núcleo funcional; política administrativa de atribuição ainda pendente.
+- Dashboard: autenticado; indicadores reais ainda pendentes.
 - Configurações: rota protegida, sem opções persistentes.
 
 ## Próximo marco recomendado
 
-Definir e implementar o modelo mínimo da Operação. Ele deve ser o próximo marco
-porque é a fonte de verdade necessária para Dashboard, retornos e Relatórios.
-
-Proposta técnica inicial, ainda sujeita à aprovação das regras:
-
-1. `OperationAssignment`: empresa/base, responsável, estado da atribuição e lock
-   otimista para evitar trabalho simultâneo.
-2. `OperationActivity`: autor, instante, tipo de contato, resultado e observação.
-3. `OperationFollowUp`: responsável, data/hora, estado e vínculo com atividade.
-4. Histórico imutável de eventos importantes.
+Validar o núcleo da Operação em banco isolado e então alimentar Dashboard, Pesquisa
+e Relatórios somente com métricas reais.
 
 ## Decisões do proprietário
 
@@ -40,7 +47,8 @@ Proposta técnica inicial, ainda sujeita à aprovação das regras:
 
 - Opção A: fila fixa atribuída por ADMIN.
 - Opção B: operador retira a próxima empresa disponível.
-- Recomendação: começar por fila atribuída, por ser auditável e previsível.
+- Implementação atual: a primeira gravação atribui a empresa ao operador.
+- Pendente: definir expiração, liberação e redistribuição administrativa.
 
 ### Resultados comerciais
 
@@ -59,16 +67,13 @@ Proposta técnica inicial, ainda sujeita à aprovação das regras:
 
 ## Microetapas verificáveis
 
-1. Aprovar estados, resultados, distribuição e política de conflito.
-2. Criar migration progressiva em banco isolado.
-3. Implementar repositório e políticas de atribuição com testes de concorrência.
-4. Entregar fila paginada e seleção de base.
-5. Entregar detalhe da empresa e registro de atividade.
-6. Entregar próximo passo/retorno e histórico.
-7. Alimentar Dashboard com consultas reais.
-8. Alimentar Relatórios com agregações reais e filtros.
-9. Completar Pesquisa e vínculo autorizado a bases.
-10. Separar preferências pessoais de configurações administrativas.
+1. Aplicar a migration progressiva em banco isolado.
+2. Validar fila, contatos, histórico, retornos e concorrência com dois usuários.
+3. Definir política administrativa de liberação e redistribuição.
+4. Alimentar Dashboard com consultas reais.
+5. Alimentar Relatórios com agregações reais e filtros.
+6. Completar Pesquisa e vínculo autorizado a bases.
+7. Separar preferências pessoais de configurações administrativas.
 
 ## Dependências operacionais
 
