@@ -11,6 +11,17 @@
 - [ ] Confirmar fallback manual quando API4Com não estiver configurada.
 - [ ] Validar webhook com segredo correto, incorreto e evento repetido.
 
+## Dashboard, Relatórios e Pesquisa
+
+- [ ] Comparar tentativas e empresas únicas com o mesmo filtro no histórico.
+- [ ] Confirmar que USER não consulta nem exporta dados de outro usuário.
+- [ ] Alternar período, base, usuário, etapa, resultado e canal.
+- [ ] Exportar CSV e conferir todas as linhas filtradas, não apenas a página visível.
+- [ ] Abrir CSV com acentos e CNPJ preservados como texto.
+- [ ] Pesquisar por CNPJ, razão social, cidade, UF, segmento e completude.
+- [ ] Confirmar que nenhum job é criado sem provedor configurado.
+- [ ] Editar o dossiê e conferir auditoria e completude antes/depois.
+
 ## Segurança e ambiente
 
 - [ ] Confirmar que o banco alvo não é o endpoint de produção antes de qualquer escrita.

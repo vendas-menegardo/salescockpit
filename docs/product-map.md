@@ -24,19 +24,18 @@ modelados para evolução futura, mas somente a ligação está preparada nesta 
 | Módulo | Rota | Estado encontrado | Estado desta entrega |
 | --- | --- | --- | --- |
 | Login | `/login` | Ausente | Implementado com e-mail, senha, sessão e mensagem segura |
-| Dashboard | `/` | Placeholder | Protegido; métricas continuam pendentes do modelo operacional |
+| Dashboard | `/` | Placeholder | Indicadores reais por período, usuário e base, com funil e pendências |
 | Operação | `/operacao` | Placeholder | Fila, interação, estágio, retorno e histórico implementados |
 | Bases | `/bases` | Funcional, mas público | Leitura autenticada; mutações e telas de edição restritas a ADMIN |
 | Empresas | `/empresas` | Parcial | Busca, filtro, paginação e dossiê implementados |
-| Pesquisa | `/pesquisa` | Placeholder | Protegido; implementação pendente |
+| Pesquisa | `/pesquisa` | Placeholder | Pesquisa paginada, filtros de completude e estrutura de enriquecimento |
 | Importação | `/importacao` | Funcional e retomável | Preservado e restrito a ADMIN no servidor |
-| Relatórios | `/relatorios` | Placeholder | Protegido; depende de dados reais da Operação |
+| Relatórios | `/relatorios` | Placeholder | Filtros históricos, operação, funil, empresas e exportação CSV |
 | Usuários | `/usuarios` | Placeholder | Implementado e restrito a ADMIN |
 | Configurações | `/configuracoes` | Placeholder | Protegido; preferências e opções globais ainda não definidas |
 
-Existe também `/busca`, uma rota placeholder duplicada e fora do mapa oficial. Ela foi
-mantida para não remover uma possível URL já utilizada; deve ser redirecionada ou
-eliminada em uma decisão posterior.
+Existe também `/busca`, mantida por compatibilidade e redirecionada para a rota oficial
+`/pesquisa`.
 
 ## Perfis
 
@@ -55,7 +54,8 @@ eliminada em uma decisão posterior.
 - Consulta Bases e Empresas.
 - Não visualiza Importação ou Usuários na navegação.
 - Não acessa as páginas administrativas nem executa suas Server Actions diretamente.
-- Pesquisa, Relatórios e preferências pessoais ainda dependem das próximas fases.
+- Pesquisa e Relatórios respeitam o escopo do usuário no servidor. Preferências
+  pessoais ainda dependem de definição.
 
 ## Integrações atuais
 
@@ -96,9 +96,13 @@ final de deduplicação. O limite continua em 10 MB.
 Um ADMIN cria a conta com senha inicial, altera nome/perfil e ativa ou desativa acesso.
 Desativar uma conta remove suas sessões na mesma transação.
 
-## Dependências do núcleo operacional
+## Métricas, relatórios e pesquisa
 
-Não foram encontradas no schema, no código, nas migrations ou no histórico definições
-confiáveis para resultado de contato, distribuição de empresas, conclusão, retorno ou
-conflito entre operadores. Dashboard e Relatórios não devem apresentar métricas até
-essas regras e seus modelos persistentes existirem.
+Dashboard e Relatórios usam `SalesInteraction`, `FollowUpTask`, `BaseCompany`,
+`CompanyContact` e `CompanyDataChange` como fonte única. Empresas trabalhadas são
+contadas por CNPJ/empresa distinta, sem transformar várias tentativas em várias
+empresas.
+
+A Pesquisa consulta somente a página necessária no PostgreSQL. O adapter de
+enriquecimento e os jobs persistentes estão preparados, mas permanecem inativos
+enquanto não houver provedor real configurado. Nenhuma informação externa é simulada.

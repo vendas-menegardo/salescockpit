@@ -10,6 +10,7 @@ import {
   normalizeDialPhone,
 } from "../src/features/operation/services/api4com-service.ts";
 import { POST as api4ComWebhook } from "../src/app/api/integrations/api4com/webhook/route.ts";
+import { AnalyticsService } from "../src/features/analytics/services/analytics-service.ts";
 
 const ISOLATED_DATABASE_HOST =
   "ep-soft-sky-ac9ou8si-pooler.sa-east-1.aws.neon.tech";
@@ -100,6 +101,19 @@ test("operação comercial é atômica, retomável e protegida de concorrência"
       }),
       1
     );
+    const analytics = await AnalyticsService.getMetrics(
+      {
+        from: "2026-07-29",
+        to: "2026-07-29",
+        baseId,
+        userId: user1.id,
+      },
+      user1.id
+    );
+    assert.equal(analytics.attempts, 1);
+    assert.equal(analytics.uniqueCompanies, 1);
+    assert.equal(analytics.followUpsScheduled, 1);
+    assert.equal(analytics.stageCounts.EM_TENTATIVA, 1);
     assert.equal(
       (
         await prisma.operationCursor.findUniqueOrThrow({

@@ -28,6 +28,24 @@ e correlaciona o webhook por IDs internos. O webhook exige segredo próprio, val
 o payload e ignora repetição após o encerramento. As variáveis opcionais são
 `API4COM_TOKEN`, `API4COM_EXTENSION` e `API4COM_WEBHOOK_SECRET`.
 
+## Métricas e enriquecimento
+
+A migration `20260729143000_add_analytics_enrichment` é aditiva e cria:
+
+- `CompanyDataChange`: auditoria de campos alterados e completude antes/depois.
+- `EnrichmentJob`: execução retomável vinculada ao usuário e ao provedor.
+- `EnrichmentJobItem`: empresa, prévia e estado individual dentro do job.
+
+Dashboard e Relatórios compartilham `AnalyticsService`. Os filtros de perfil são
+aplicados no servidor; USER é sempre limitado ao próprio `userId`, mesmo que tente
+enviar outro identificador na URL. A exportação CSV exige sessão e lê o resultado em
+páginas de até 500 linhas, com BOM UTF-8, fuso `America/Sao_Paulo`, CNPJ formatado e
+neutralização de fórmulas.
+
+`EnrichmentProvider` define o contrato para fontes futuras. O registry retorna
+`null` enquanto não existir uma integração configurada; por isso a interface permite
+pesquisa e seleção, mas não cria jobs nem propõe alterações fictícias.
+
 ## Aplicação
 
 O SalesCockpit usa Next.js 16 App Router, React 19, TypeScript, Prisma 6 e PostgreSQL.
