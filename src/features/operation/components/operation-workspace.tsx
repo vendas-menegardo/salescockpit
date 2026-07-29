@@ -264,7 +264,11 @@ export function OperationWorkspace({
           </p>
         </div>
 
-        <form action={action} className="grid gap-4">
+        <form
+          id="operation-interaction-form"
+          action={action}
+          className="grid gap-4"
+        >
           <input type="hidden" name="baseId" value={baseId} />
           <input type="hidden" name="companyId" value={current.companyId} />
           <input type="hidden" name="view" value={view} />
@@ -341,33 +345,37 @@ export function OperationWorkspace({
               {state.error}
             </p>
           )}
-          <div className="flex flex-wrap justify-between gap-2">
-            <div className="flex gap-2">
-              <CursorButton
-                label="Anterior"
-                icon={<ArrowLeft />}
-                membership={previousMembership}
-                currentId={current.companyId}
-                baseId={baseId}
-                view={view}
-              />
-              <CursorButton
-                label="Pular"
-                icon={<ArrowRight />}
-                membership={next}
-                currentId={current.companyId}
-                baseId={baseId}
-                view={view}
-              />
-            </div>
-            <Button type="submit" disabled={pending}>
-              {pending && (
-                <Loader2 className="animate-spin" data-icon="inline-start" />
-              )}
-              {pending ? "Salvando" : "Salvar e avançar"}
-            </Button>
-          </div>
         </form>
+        <div className="flex flex-wrap justify-between gap-2">
+          <div className="flex gap-2">
+            <CursorButton
+              label="Anterior"
+              icon={<ArrowLeft />}
+              membership={previousMembership}
+              currentId={current.companyId}
+              baseId={baseId}
+              view={view}
+            />
+            <CursorButton
+              label="Pular"
+              icon={<ArrowRight />}
+              membership={next}
+              currentId={current.companyId}
+              baseId={baseId}
+              view={view}
+            />
+          </div>
+          <Button
+            type="submit"
+            form="operation-interaction-form"
+            disabled={pending}
+          >
+            {pending && (
+              <Loader2 className="animate-spin" data-icon="inline-start" />
+            )}
+            {pending ? "Salvando" : "Salvar e avançar"}
+          </Button>
+        </div>
       </section>
 
       <aside className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
