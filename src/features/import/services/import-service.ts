@@ -47,6 +47,12 @@ type ParsedCsv = {
 
 export class ImportValidationError extends Error {}
 
+function assertImportBaseId(baseId: string) {
+  if (!baseId.trim()) {
+    throw new ImportValidationError("Selecione uma base de destino.");
+  }
+}
+
 function parseCsv({ fileName, csvText }: Pick<ImportActionInput, "fileName" | "csvText">) {
   if (!fileName.toLowerCase().endsWith(".csv")) {
     throw new ImportValidationError("Selecione um arquivo com extensão .csv.");
@@ -173,6 +179,24 @@ async function lockImportJob(tx: Prisma.TransactionClient, jobId: string) {
   );
 }
 
+async function lockImportBase(
+  tx: Prisma.TransactionClient,
+  baseId: string
+) {
+  const lockedBases = await tx.$queryRaw<Array<{ id: string }>>(
+    Prisma.sql`
+      SELECT "id"
+      FROM "public"."Base"
+      WHERE "id" = ${baseId}
+      FOR UPDATE
+    `
+  );
+
+  if (lockedBases.length !== 1) {
+    throw new ImportValidationError("A base de destino não foi encontrada.");
+  }
+}
+
 function assertImportJobIdentity(
   job: { baseId: string; fileHash: string },
   context: ImportJobContext
@@ -271,6 +295,8 @@ async function fillEmptyCompanyFields(
 
 export class ImportService {
   static async analyze(input: ImportActionInput): Promise<ImportAnalysis> {
+    assertImportBaseId(input.baseId);
+
     const parsed = parseCsv(input);
     const base = await prisma.base.findUnique({
       where: { id: input.baseId },
@@ -445,6 +471,8 @@ export class ImportService {
   }
 
   static async startJob(input: StartImportJobInput) {
+    assertImportBaseId(input.baseId);
+
     const base = await prisma.base.findUnique({
       where: { id: input.baseId },
       select: { id: true },
@@ -500,6 +528,8 @@ export class ImportService {
     context: ImportJobContext,
     rows: ImportJobStageRow[]
   ) {
+    assertImportBaseId(context.baseId);
+
     return prisma.$transaction(
       async (tx) => {
         await lockImportJob(tx, context.jobId);
@@ -549,6 +579,8 @@ export class ImportService {
   }
 
   static async finalizeJob(context: ImportJobContext) {
+    assertImportBaseId(context.baseId);
+
     return prisma.$transaction(
       async (tx) => {
         await lockImportJob(tx, context.jobId);
@@ -593,6 +625,8 @@ export class ImportService {
   }
 
   static async processJobBatch(context: ImportJobContext) {
+    assertImportBaseId(context.baseId);
+
     try {
       return await prisma.$transaction(
         async (tx) => {
@@ -626,14 +660,7 @@ export class ImportService {
             );
           }
 
-          await tx.$queryRaw(
-            Prisma.sql`
-              SELECT "id"
-              FROM "public"."Base"
-              WHERE "id" = ${job.baseId}
-              FOR UPDATE
-            `
-          );
+          await lockImportBase(tx, job.baseId);
 
           const rows = await tx.importJobRow.findMany({
             where: { jobId: context.jobId, processedAt: null },
