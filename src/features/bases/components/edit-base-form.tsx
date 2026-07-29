@@ -15,6 +15,7 @@ type Props = {
     id: string;
     name: string;
     description: string | null;
+    operationScript: string | null;
     segment: string | null;
     state: string | null;
     city: string | null;
@@ -28,6 +29,9 @@ export function EditBaseForm({ base }: Props) {
 
   const [name, setName] = useState(base.name);
   const [description, setDescription] = useState(base.description ?? "");
+  const [operationScript, setOperationScript] = useState(
+    base.operationScript ?? ""
+  );
   const [segment, setSegment] = useState(base.segment ?? "");
   const [state, setState] = useState(base.state ?? "");
   const [city, setCity] = useState(base.city ?? "");
@@ -41,6 +45,7 @@ export function EditBaseForm({ base }: Props) {
       await updateBase(base.id, {
         name,
         description,
+        operationScript,
         segment,
         state,
         city,
@@ -81,6 +86,16 @@ export function EditBaseForm({ base }: Props) {
           </div>
 
           <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-3 space-y-2">
+              <label>Roteiro comercial</label>
+              <Textarea
+                rows={6}
+                maxLength={5000}
+                value={operationScript}
+                onChange={(e) => setOperationScript(e.target.value)}
+                placeholder="Texto de apoio exibido durante a operação desta base."
+              />
+            </div>
             <div className="space-y-2">
               <label>Segmento</label>
 

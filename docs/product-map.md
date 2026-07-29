@@ -1,14 +1,33 @@
 # Mapa do produto
 
+## Evolução comercial atual
+
+- **Empresas**: busca e filtro com paginação no servidor; dossiê individual com
+  vínculos, contatos e histórico comercial.
+- **Operação**: fila por base e visão, com registro de resultado, estágio,
+  observação, retorno e avanço.
+- **Contatos**: múltiplos registros por empresa, com tipo, origem, validade,
+  responsável e indicação de principal.
+- **Telefonia**: API4Com opcional no servidor; sem configuração, copiar telefone e
+  registro manual continuam disponíveis.
+
+O salvamento da operação confirma interação, estágio, retorno e cursor na mesma
+transação. Uma chave idempotente impede repetição da mesma ação, e a atualização
+otimista rejeita uma gravação baseada em estágio ou atribuição desatualizados.
+
+As visões disponíveis são não trabalhadas, em tentativa, retornos do dia, atrasadas,
+qualificadas, reuniões e congeladas. WhatsApp, e-mail e demais canais estão
+modelados para evolução futura, mas somente a ligação está preparada nesta etapa.
+
 ## Estado auditado
 
 | Módulo | Rota | Estado encontrado | Estado desta entrega |
 | --- | --- | --- | --- |
 | Login | `/login` | Ausente | Implementado com e-mail, senha, sessão e mensagem segura |
 | Dashboard | `/` | Placeholder | Protegido; métricas continuam pendentes do modelo operacional |
-| Operação | `/operacao` | Placeholder | Protegido; regras comerciais aguardam decisão |
+| Operação | `/operacao` | Placeholder | Fila, interação, estágio, retorno e histórico implementados |
 | Bases | `/bases` | Funcional, mas público | Leitura autenticada; mutações e telas de edição restritas a ADMIN |
-| Empresas | `/empresas` | Parcial | Leitura autenticada; busca e filtro funcionam, paginação e detalhes pendentes |
+| Empresas | `/empresas` | Parcial | Busca, filtro, paginação e dossiê implementados |
 | Pesquisa | `/pesquisa` | Placeholder | Protegido; implementação pendente |
 | Importação | `/importacao` | Funcional e retomável | Preservado e restrito a ADMIN no servidor |
 | Relatórios | `/relatorios` | Placeholder | Protegido; depende de dados reais da Operação |
@@ -36,7 +55,7 @@ eliminada em uma decisão posterior.
 - Consulta Bases e Empresas.
 - Não visualiza Importação ou Usuários na navegação.
 - Não acessa as páginas administrativas nem executa suas Server Actions diretamente.
-- Operação, Pesquisa, Relatórios e preferências pessoais ainda dependem das próximas fases.
+- Pesquisa, Relatórios e preferências pessoais ainda dependem das próximas fases.
 
 ## Integrações atuais
 
@@ -57,9 +76,14 @@ impedido pela chave composta.
 
 ### Empresas
 
-O cadastro é centralizado por `Company`. A consulta suporta nome, nome fantasia, CNPJ
-e filtro por base, mas retorna no máximo 100 registros e ainda não oferece detalhe ou
-paginação real.
+O cadastro é centralizado por `Company`. A consulta suporta nome, nome fantasia,
+CNPJ e filtro por base, com paginação no servidor e dossiê individual.
+
+### Operação
+
+O usuário seleciona uma base ativa e uma visão da fila. Cada atendimento registra
+resultado, transição de estágio, observação e retorno opcional, preservando o
+histórico por empresa, base e operador.
 
 ### Importação
 

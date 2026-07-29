@@ -1,5 +1,16 @@
 # Checklist de QA
 
+## Operação comercial
+
+- [ ] Paginar Empresas mantendo busca e filtro por base.
+- [ ] Abrir dossiê e cadastrar, validar, invalidar e priorizar contato.
+- [ ] Registrar resultado e estágio e confirmar histórico após recarregar.
+- [ ] Agendar retorno e conferir as visões do dia e atrasados.
+- [ ] Reenviar a mesma ação e confirmar que não duplica interação.
+- [ ] Tentar atualização concorrente com dois usuários e confirmar rejeição segura.
+- [ ] Confirmar fallback manual quando API4Com não estiver configurada.
+- [ ] Validar webhook com segredo correto, incorreto e evento repetido.
+
 ## Segurança e ambiente
 
 - [ ] Confirmar que o banco alvo não é o endpoint de produção antes de qualquer escrita.

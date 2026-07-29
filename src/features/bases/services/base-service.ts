@@ -34,8 +34,10 @@ export class BaseService {
     });
   }
 
-  static async findByIdWithCompanies(id: string) {
-    const [base, companies] = await Promise.all([
+  static async findByIdWithCompanies(id: string, page = 1, pageSize = 50) {
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(10, Math.floor(pageSize)));
+    const [base, companies, totalCompanies] = await Promise.all([
       prisma.base.findUnique({
         where: {
           id,
@@ -53,7 +55,10 @@ export class BaseService {
             corporateName: "asc",
           },
         },
+        skip: (safePage - 1) * safePageSize,
+        take: safePageSize,
       }),
+      prisma.baseCompany.count({ where: { baseId: id } }),
     ]);
 
     if (!base) {
@@ -63,6 +68,9 @@ export class BaseService {
     return {
       ...base,
       companies,
+      totalCompanies,
+      page: safePage,
+      totalPages: Math.max(1, Math.ceil(totalCompanies / safePageSize)),
     };
   }
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -13,17 +13,45 @@ type EmpresasPageProps = {
   searchParams: Promise<{
     query?: string;
     baseId?: string;
+    page?: string;
+    pageSize?: string;
   }>;
 };
 
 export default async function EmpresasPage({
   searchParams,
 }: EmpresasPageProps) {
-  const { query = "", baseId = "" } = await searchParams;
-  const [companies, selectedBase] = await Promise.all([
-    CompanyService.findAll({ query, baseId }),
+  const {
+    query = "",
+    baseId = "",
+    page: pageParam = "1",
+    pageSize: pageSizeParam = "25",
+  } = await searchParams;
+  const requestedPage = Number.parseInt(pageParam, 10);
+  const requestedPageSize = Number.parseInt(pageSizeParam, 10);
+  const pageSize = [25, 50, 100].includes(requestedPageSize)
+    ? requestedPageSize
+    : 25;
+  const resultPromise = CompanyService.findPage({
+    query,
+    baseId,
+    page: Number.isFinite(requestedPage) ? requestedPage : 1,
+    pageSize,
+  });
+  const [result, selectedBase] = await Promise.all([
+    resultPromise,
     baseId ? BaseService.findById(baseId) : null,
   ]);
+  const { companies, total, page, totalPages } = result;
+
+  function pageHref(nextPage: number) {
+    const params = new URLSearchParams();
+    if (query) params.set("query", query);
+    if (baseId) params.set("baseId", baseId);
+    params.set("pageSize", String(pageSize));
+    params.set("page", String(nextPage));
+    return `/empresas?${params.toString()}`;
+  }
 
   return (
     <div className="space-y-6">
@@ -50,6 +78,16 @@ export default async function EmpresasPage({
             className="pl-8"
           />
         </div>
+        <select
+          name="pageSize"
+          defaultValue={String(pageSize)}
+          aria-label="Itens por página"
+          className="h-8 rounded-lg border border-input bg-white px-2.5 text-sm"
+        >
+          <option value="25">25 por página</option>
+          <option value="50">50 por página</option>
+          <option value="100">100 por página</option>
+        </select>
         <Button type="submit">Pesquisar</Button>
         {(query || baseId) && (
           <Button
@@ -71,11 +109,14 @@ export default async function EmpresasPage({
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="border-b border-zinc-200 bg-zinc-50">
-                <tr>
+                  <tr>
                   <th className="px-4 py-3 text-left font-medium">CNPJ</th>
                   <th className="px-4 py-3 text-left font-medium">Empresa</th>
+                  <th className="px-4 py-3 text-left font-medium">Segmento</th>
                   <th className="px-4 py-3 text-left font-medium">Cidade/UF</th>
+                  <th className="px-4 py-3 text-left font-medium">Contato</th>
                   <th className="px-4 py-3 text-left font-medium">Bases</th>
+                  <th className="px-4 py-3 text-right font-medium">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -84,6 +125,7 @@ export default async function EmpresasPage({
                     <td className="px-4 py-3 font-mono text-xs">
                       {formatCnpj(company.cnpj)}
                     </td>
+                    <td className="px-4 py-3">{company.segment || "-"}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium">{company.corporateName}</div>
                       {company.tradeName && (
@@ -97,6 +139,14 @@ export default async function EmpresasPage({
                         "-"}
                     </td>
                     <td className="px-4 py-3">
+                      <div>{company.phone || "-"}</div>
+                      {company.email && (
+                        <div className="max-w-56 truncate text-xs text-zinc-500">
+                          {company.email}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {company.bases.length === 0
                           ? "-"
@@ -107,6 +157,16 @@ export default async function EmpresasPage({
                             ))}
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        nativeButton={false}
+                        render={<Link href={`/empresas/${company.id}`} />}
+                      >
+                        Abrir
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -115,12 +175,45 @@ export default async function EmpresasPage({
         )}
       </div>
 
-      {companies.length === 100 && (
-        <p className="text-xs text-zinc-500">
-          Exibindo os primeiros 100 resultados. Refine a pesquisa para reduzir a
-          lista.
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600">
+        <p>
+          {total === 0
+            ? "Nenhum resultado"
+            : `${total.toLocaleString("pt-BR")} empresa${total === 1 ? "" : "s"} · página ${page} de ${totalPages}`}
         </p>
-      )}
+        <div className="flex gap-2">
+          {page > 1 ? (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={pageHref(page - 1)} />}
+            >
+              <ChevronLeft data-icon="inline-start" />
+              Anterior
+            </Button>
+          ) : (
+            <Button variant="outline" disabled>
+              <ChevronLeft data-icon="inline-start" />
+              Anterior
+            </Button>
+          )}
+          {page < totalPages ? (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={pageHref(page + 1)} />}
+            >
+              Próxima
+              <ChevronRight data-icon="inline-end" />
+            </Button>
+          ) : (
+            <Button variant="outline" disabled>
+              Próxima
+              <ChevronRight data-icon="inline-end" />
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

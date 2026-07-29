@@ -15,20 +15,90 @@ enum ImportJobStatus {
   COMPLETED
 }
 
+enum CommercialStage {
+  NOVA
+  EM_TENTATIVA
+  CONTATO_REALIZADO
+  QUALIFICADA
+  REUNIAO_AGENDADA
+  REUNIAO_REALIZADA
+  GANHA
+  PERDIDA
+  CONGELADA
+  DESCARTADA
+}
+
+enum InteractionChannel {
+  CALL
+  WHATSAPP
+  EMAIL
+  INSTAGRAM
+  OTHER
+}
+
+enum InteractionOrigin {
+  MANUAL
+  API4COM
+}
+
+enum InteractionResult {
+  SEM_RESPOSTA
+  OCUPADO
+  CAIXA_POSTAL
+  NUMERO_INVALIDO
+  ERRO_TECNICO
+  PESSOA_ERRADA
+  RECEPCAO
+  RESPONSAVEL_INDISPONIVEL
+  SOLICITOU_RETORNO
+  FALOU_COM_RESPONSAVEL
+  SEM_INTERESSE
+  EMPRESA_INADEQUADA
+  EMPRESA_QUALIFICADA
+  REUNIAO_AGENDADA
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  CANCELED
+}
+
+enum ContactType {
+  PHONE
+  WHATSAPP
+  EMAIL
+  WEBSITE
+  INSTAGRAM
+  OTHER
+}
+
+enum ContactValidity {
+  UNKNOWN
+  VALID
+  INVALID
+}
+
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  role          String    @default("user")
-  banned        Boolean   @default(false)
-  banReason     String?
-  banExpires    DateTime?
-  sessions      Session[]
-  accounts      Account[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                  String             @id
+  name                String
+  email               String             @unique
+  emailVerified       Boolean            @default(false)
+  image               String?
+  role                String             @default("user")
+  banned              Boolean            @default(false)
+  banReason           String?
+  banExpires          DateTime?
+  sessions            Session[]
+  accounts            Account[]
+  companyContacts     CompanyContact[]
+  interactions        SalesInteraction[]
+  followUps           FollowUpTask[]
+  operationCursors    OperationCursor[]
+  assignedMemberships BaseCompany[]      @relation("AssignedMemberships")
+  api4ComExtension    String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([role, banned])
 }
@@ -81,9 +151,10 @@ model Verification {
 }
 
 model Base {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
+  id              String  @id @default(cuid())
+  name            String
+  description     String?
+  operationScript String?
 
   segment String?
   state   String?
@@ -93,8 +164,11 @@ model Base {
 
   companiesCount Int @default(0)
 
-  companies  BaseCompany[]
-  importJobs ImportJob[]
+  companies        BaseCompany[]
+  importJobs       ImportJob[]
+  interactions     SalesInteraction[]
+  followUps        FollowUpTask[]
+  operationCursors OperationCursor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -117,9 +191,20 @@ model Company {
   city  String?
   state String?
 
-  contactName String?
+  contactName        String?
+  registrationStatus String?
+  legalNature        String?
+  description        String?
+  address            String?
+  district           String?
+  postalCode         String?
+  notes              String?
 
-  bases BaseCompany[]
+  bases            BaseCompany[]
+  contacts         CompanyContact[]
+  interactions     SalesInteraction[]
+  followUps        FollowUpTask[]
+  operationCursors OperationCursor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -132,16 +217,127 @@ model BaseCompany {
   baseId    String
   companyId String
 
-  status String? @default("Novo")
+  status            String?         @default("Novo")
+  stage             CommercialStage @default(NOVA)
+  assignedUserId    String?
+  lastInteractionAt DateTime?
 
-  base    Base    @relation(fields: [baseId], references: [id], onDelete: Cascade)
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  base         Base    @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedUser User?   @relation("AssignedMemberships", fields: [assignedUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@id([baseId, companyId])
   @@index([companyId])
+  @@index([baseId, stage, lastInteractionAt])
+  @@index([assignedUserId])
+}
+
+model CompanyContact {
+  id              String          @id @default(cuid())
+  companyId       String
+  type            ContactType
+  value           String
+  isPrimary       Boolean         @default(false)
+  responsibleName String?
+  role            String?
+  source          String?
+  validity        ContactValidity @default(UNKNOWN)
+  validatedAt     DateTime?
+  notes           String?
+  createdByUserId String?
+
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser User?              @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  interactions  SalesInteraction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, type, value])
+  @@index([companyId, isPrimary])
+  @@index([createdByUserId])
+}
+
+model SalesInteraction {
+  id              String             @id @default(cuid())
+  companyId       String
+  baseId          String
+  userId          String
+  contactId       String?
+  channel         InteractionChannel @default(CALL)
+  contactUsed     String?
+  result          InteractionResult?
+  notes           String?
+  previousStage   CommercialStage
+  nextStage       CommercialStage
+  origin          InteractionOrigin  @default(MANUAL)
+  externalCallId  String?            @unique
+  idempotencyKey  String             @unique
+  dispositionKey  String?            @unique
+  startedAt       DateTime?
+  answeredAt      DateTime?
+  endedAt         DateTime?
+  durationSeconds Int?
+  hangupCause     String?
+  recordingUrl    String?
+
+  company   Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  base      Base            @relation(fields: [baseId], references: [id], onDelete: Restrict)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  contact   CompanyContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  followUps FollowUpTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([baseId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model FollowUpTask {
+  id            String         @id @default(cuid())
+  companyId     String
+  baseId        String
+  userId        String
+  interactionId String?
+  dueAt         DateTime
+  reason        String
+  status        FollowUpStatus @default(PENDING)
+  completedAt   DateTime?
+
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  base        Base              @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interaction SalesInteraction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status, dueAt])
+  @@index([baseId, status, dueAt])
+  @@index([companyId, createdAt])
+}
+
+model OperationCursor {
+  userId            String
+  baseId            String
+  currentCompanyId  String?
+  previousCompanyId String?
+  view              String  @default("not-worked")
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  base           Base     @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  currentCompany Company? @relation(fields: [currentCompanyId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, baseId])
+  @@index([currentCompanyId])
 }
 
 model ImportJob {

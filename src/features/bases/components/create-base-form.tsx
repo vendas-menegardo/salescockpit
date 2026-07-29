@@ -17,6 +17,7 @@ export function CreateBaseForm() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [operationScript, setOperationScript] = useState("");
   const [segment, setSegment] = useState("");
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
@@ -30,6 +31,7 @@ export function CreateBaseForm() {
       await createBase({
         name,
         description,
+        operationScript,
         segment,
         state,
         city,
@@ -74,6 +76,16 @@ export function CreateBaseForm() {
           </div>
 
           <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-3 space-y-2">
+              <label>Roteiro comercial</label>
+              <Textarea
+                value={operationScript}
+                onChange={(e) => setOperationScript(e.target.value)}
+                rows={6}
+                maxLength={5000}
+                placeholder="Texto de apoio exibido durante a operação desta base."
+              />
+            </div>
             <div className="space-y-2">
               <label>Segmento</label>
 

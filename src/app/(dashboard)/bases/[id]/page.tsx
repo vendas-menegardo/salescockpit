@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Building2 } from "lucide-react";
+import { ArrowLeft, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,15 +13,22 @@ type BaseDetailsPageProps = {
   params: Promise<{
     id: string;
   }>;
+  searchParams: Promise<{ page?: string }>;
 };
 
 export default async function BaseDetailsPage({
   params,
+  searchParams,
 }: BaseDetailsPageProps) {
   const session = await requireSession();
   const canManageBases = isAdminRole(session.user.role);
   const { id } = await params;
-  const base = await BaseService.findByIdWithCompanies(id);
+  const { page: pageParam = "1" } = await searchParams;
+  const requestedPage = Number.parseInt(pageParam, 10);
+  const base = await BaseService.findByIdWithCompanies(
+    id,
+    Number.isFinite(requestedPage) ? requestedPage : 1
+  );
 
   if (!base) {
     notFound();
@@ -71,7 +78,7 @@ export default async function BaseDetailsPage({
       <div className="flex items-center gap-2">
         <Building2 className="text-zinc-500" size={20} />
         <h2 className="text-lg font-semibold">
-          Empresas vinculadas ({base.companies.length})
+          Empresas vinculadas ({base.totalCompanies.toLocaleString("pt-BR")})
         </h2>
       </div>
 
@@ -92,7 +99,7 @@ export default async function BaseDetailsPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {base.companies.map(({ company, status }) => (
+                {base.companies.map(({ company, status, stage }) => (
                   <tr key={company.id}>
                     <td className="px-4 py-3 font-mono text-xs">
                       {formatCnpj(company.cnpj)}
@@ -110,13 +117,51 @@ export default async function BaseDetailsPage({
                         "-"}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant="secondary">{status || "Novo"}</Badge>
+                      <Badge variant="secondary">
+                        {stage === "NOVA" ? status || "Novo" : stage}
+                      </Badge>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-end gap-2">
+        {base.page > 1 ? (
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/bases/${base.id}?page=${base.page - 1}`} />}
+          >
+            <ChevronLeft data-icon="inline-start" />
+            Anterior
+          </Button>
+        ) : (
+          <Button variant="outline" disabled>
+            <ChevronLeft data-icon="inline-start" />
+            Anterior
+          </Button>
+        )}
+        <span className="text-sm text-zinc-500">
+          Página {base.page} de {base.totalPages}
+        </span>
+        {base.page < base.totalPages ? (
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/bases/${base.id}?page=${base.page + 1}`} />}
+          >
+            Próxima
+            <ChevronRight data-icon="inline-end" />
+          </Button>
+        ) : (
+          <Button variant="outline" disabled>
+            Próxima
+            <ChevronRight data-icon="inline-end" />
+          </Button>
         )}
       </div>
     </div>
