@@ -174,3 +174,20 @@ test("chaves idempotentes são criadas no servidor sem divergência de hidrataç
     /name="idempotencyKey"\s+value=\{callIdempotencyKey\}/
   );
 });
+
+test("controles de navegação não criam formulários aninhados", () => {
+  const source = fs.readFileSync(
+    "src/features/operation/components/operation-workspace.tsx",
+    "utf8"
+  );
+  const interactionFormStart = source.indexOf(
+    'id="operation-interaction-form"'
+  );
+  const interactionFormEnd = source.indexOf("</form>", interactionFormStart);
+  const cursorStart = source.indexOf("<CursorButton", interactionFormStart);
+
+  assert.ok(interactionFormStart >= 0);
+  assert.ok(interactionFormEnd > interactionFormStart);
+  assert.ok(cursorStart > interactionFormEnd);
+  assert.match(source, /form="operation-interaction-form"/);
+});
