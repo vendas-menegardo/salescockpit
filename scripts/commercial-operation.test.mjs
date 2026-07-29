@@ -216,4 +216,12 @@ test("shell e Operação limitam o painel ao viewport no desktop", () => {
   assert.match(workspaceSource, /lg:min-h-0 lg:flex-1/);
   assert.match(workspaceSource, /lg:overflow-hidden/);
   assert.match(workspaceSource, /lg:overflow-y-auto/);
+  assert.match(
+    workspaceSource,
+    /grid min-h-0 flex-1 content-start gap-3 overflow-y-auto/
+  );
+  assert.match(
+    workspaceSource,
+    /form="operation-interaction-form"\s+className="bg-blue-600/
+  );
 });

@@ -51,7 +51,11 @@ export default async function OperacaoPage({
             </select>
           </label>
           <input type="hidden" name="view" value={view} />
-          <Button type="submit" size="sm">
+          <Button
+            type="submit"
+            size="sm"
+            className="bg-blue-600 text-white hover:bg-blue-700"
+          >
             Selecionar
           </Button>
         </form>
@@ -67,6 +71,11 @@ export default async function OperacaoPage({
               key={item.value}
               size="sm"
               variant={view === item.value ? "default" : "outline"}
+              className={
+                view === item.value
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : undefined
+              }
               nativeButton={false}
               render={
                 <Link

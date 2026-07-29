@@ -205,7 +205,12 @@ export function OperationWorkspace({
               name="idempotencyKey"
               value={callIdempotencyKey}
             />
-            <Button type="submit" size="sm" disabled={!phone || callPending}>
+            <Button
+              type="submit"
+              size="sm"
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              disabled={!phone || callPending}
+            >
               {callPending ? (
                 <Loader2 className="animate-spin" data-icon="inline-start" />
               ) : (
@@ -260,7 +265,7 @@ export function OperationWorkspace({
         <form
           id="operation-interaction-form"
           action={action}
-          className="grid min-h-0 gap-3"
+          className="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto pr-1"
         >
           <input type="hidden" name="baseId" value={baseId} />
           <input type="hidden" name="companyId" value={current.companyId} />
@@ -365,6 +370,7 @@ export function OperationWorkspace({
           <Button
             type="submit"
             form="operation-interaction-form"
+            className="bg-blue-600 text-white hover:bg-blue-700"
             disabled={pending}
           >
             {pending && (
