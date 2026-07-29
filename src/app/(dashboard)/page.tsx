@@ -1,7 +1,6 @@
 import { Activity, CalendarClock, PhoneCall, Target, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
-import { DashboardSection } from "@/components/dashboard/dashboard-section";
 import { Button } from "@/components/ui/button";
 import { AnalyticsService } from "@/features/analytics/services/analytics-service";
 import { DashboardAutoRefresh } from "@/features/analytics/components/dashboard-auto-refresh";
@@ -55,67 +54,75 @@ export default async function DashboardPage({
   const maxFunnel = Math.max(1, ...funnel.map((item) => item[1]));
 
   return (
-    <div className="space-y-7">
+    <div className="flex min-h-0 flex-col gap-3 lg:h-full lg:overflow-hidden">
       <DashboardAutoRefresh />
-      <PageHeader
-        title="Dashboard"
-        description="Acompanhamento da operação com dados reais do histórico comercial."
-      />
 
-      <form className="grid gap-3 border-y border-zinc-200 py-4 sm:grid-cols-2 xl:grid-cols-5">
-        <FilterField label="Data inicial">
-          <input
-            type="date"
-            name="from"
-            defaultValue={filters.from}
-            className="h-9 rounded-lg border border-input bg-white px-2.5 text-sm"
-          />
-        </FilterField>
-        <FilterField label="Data final">
-          <input
-            type="date"
-            name="to"
-            defaultValue={filters.to}
-            className="h-9 rounded-lg border border-input bg-white px-2.5 text-sm"
-          />
-        </FilterField>
-        {admin && (
-          <FilterField label="Usuário">
+      <div className="grid shrink-0 gap-3 xl:grid-cols-[minmax(13rem,0.7fr)_minmax(0,2fr)] xl:items-end">
+        <PageHeader
+          title="Dashboard"
+          description="Acompanhamento da operação com dados reais do histórico comercial."
+        />
+
+        <form className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.1fr_1.2fr_auto]">
+          <FilterField label="Data inicial">
+            <input
+              type="date"
+              name="from"
+              defaultValue={filters.from}
+              className="h-8 min-w-0 rounded-lg border border-input bg-white px-2 text-sm"
+            />
+          </FilterField>
+          <FilterField label="Data final">
+            <input
+              type="date"
+              name="to"
+              defaultValue={filters.to}
+              className="h-8 min-w-0 rounded-lg border border-input bg-white px-2 text-sm"
+            />
+          </FilterField>
+          {admin && (
+            <FilterField label="Usuário">
+              <select
+                name="userId"
+                defaultValue={filters.userId || ""}
+                className="h-8 min-w-0 rounded-lg border border-input bg-white px-2 text-sm"
+              >
+                <option value="">Todos os usuários</option>
+                {options.users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </FilterField>
+          )}
+          <FilterField label="Base">
             <select
-              name="userId"
-              defaultValue={filters.userId || ""}
-              className="h-9 rounded-lg border border-input bg-white px-2.5 text-sm"
+              name="baseId"
+              defaultValue={filters.baseId || ""}
+              className="h-8 min-w-0 rounded-lg border border-input bg-white px-2 text-sm"
             >
-              <option value="">Todos os usuários</option>
-              {options.users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
+              <option value="">Todas as bases</option>
+              {options.bases.map((base) => (
+                <option key={base.id} value={base.id}>
+                  {base.name}
                 </option>
               ))}
             </select>
           </FilterField>
-        )}
-        <FilterField label="Base">
-          <select
-            name="baseId"
-            defaultValue={filters.baseId || ""}
-            className="h-9 rounded-lg border border-input bg-white px-2.5 text-sm"
-          >
-            <option value="">Todas as bases</option>
-            {options.bases.map((base) => (
-              <option key={base.id} value={base.id}>
-                {base.name}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-        <div className="flex items-end">
-          <Button type="submit">Atualizar</Button>
-        </div>
-      </form>
+          <div className="flex items-end">
+            <Button type="submit" size="sm">
+              Atualizar
+            </Button>
+          </div>
+        </form>
+      </div>
 
-      <DashboardSection title="Atividade no período">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="shrink-0 space-y-2">
+        <h2 className="text-base font-semibold tracking-tight">
+          Atividade no período
+        </h2>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           <Metric
             icon={PhoneCall}
             label="Tentativas"
@@ -142,13 +149,19 @@ export default async function DashboardPage({
             value={metrics.followUpsScheduled}
           />
         </div>
-      </DashboardSection>
+      </section>
 
-      <div className="grid gap-7 xl:grid-cols-[1.4fr_1fr]">
-        <DashboardSection title="Funil comercial">
-          <div className="space-y-3 border-y border-zinc-200 py-4">
+      <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(19rem,0.85fr)]">
+        <section className="min-h-0 rounded-lg border border-zinc-200 bg-white p-3">
+          <h2 className="text-base font-semibold tracking-tight">
+            Funil comercial
+          </h2>
+          <div className="mt-2 space-y-1">
             {funnel.map(([label, value]) => (
-              <div key={label} className="grid grid-cols-[10rem_1fr_4rem] items-center gap-3 text-sm">
+              <div
+                key={label}
+                className="grid min-h-8 grid-cols-[9rem_1fr_3.5rem] items-center gap-2 text-sm"
+              >
                 <span>{label}</span>
                 <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
                   <div
@@ -160,39 +173,47 @@ export default async function DashboardPage({
               </div>
             ))}
           </div>
-        </DashboardSection>
+        </section>
 
-        <DashboardSection title="Pendências">
-          <dl className="divide-y divide-zinc-200 border-y border-zinc-200 text-sm">
-            <StatLine label="Retornos pendentes" value={metrics.followUpsPending} />
-            <StatLine label="Retornos atrasados" value={metrics.followUpsOverdue} />
-            <StatLine label="Números invalidados" value={metrics.invalidNumbers} />
-            <StatLine
-              label={COMMERCIAL_STAGE_LABELS.CONGELADA}
-              value={metrics.stageCounts.CONGELADA}
-            />
-          </dl>
-        </DashboardSection>
-      </div>
+        <div className="grid min-h-0 content-start gap-3 xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden">
+          <section className="rounded-lg border border-zinc-200 bg-white p-3">
+            <h2 className="text-base font-semibold tracking-tight">
+              Pendências
+            </h2>
+            <dl className="mt-1 divide-y divide-zinc-100 text-sm">
+              <StatLine label="Retornos pendentes" value={metrics.followUpsPending} />
+              <StatLine label="Retornos atrasados" value={metrics.followUpsOverdue} />
+              <StatLine label="Números invalidados" value={metrics.invalidNumbers} />
+              <StatLine
+                label={COMMERCIAL_STAGE_LABELS.CONGELADA}
+                value={metrics.stageCounts.CONGELADA}
+              />
+            </dl>
+          </section>
 
-      <DashboardSection title="Qualidade dos dados">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric label="Contatos adicionados" value={metrics.contactsAdded} />
-          <Metric label="Contatos validados" value={metrics.contactsValidated} />
-          <Metric label="Telefones invalidados" value={metrics.contactsInvalidated} />
-          <Metric label="Empresas enriquecidas" value={metrics.enrichedCompanies} />
-          <Metric label="Empresas com telefone" value={metrics.companiesWithPhone} />
-          <Metric label="Empresas com e-mail" value={metrics.companiesWithEmail} />
-          <Metric label="Empresas com site" value={metrics.companiesWithWebsite} />
-          <Metric label="Empresas com rede social" value={metrics.companiesWithSocial} />
+          <section className="min-h-0 rounded-lg border border-zinc-200 bg-white p-3 xl:overflow-y-auto">
+            <h2 className="text-base font-semibold tracking-tight">
+              Qualidade dos dados
+            </h2>
+            <dl className="mt-1 grid gap-x-4 sm:grid-cols-2">
+              <CompactMetric label="Contatos adicionados" value={metrics.contactsAdded} />
+              <CompactMetric label="Contatos validados" value={metrics.contactsValidated} />
+              <CompactMetric label="Telefones invalidados" value={metrics.contactsInvalidated} />
+              <CompactMetric label="Empresas enriquecidas" value={metrics.enrichedCompanies} />
+              <CompactMetric label="Com telefone" value={metrics.companiesWithPhone} />
+              <CompactMetric label="Com e-mail" value={metrics.companiesWithEmail} />
+              <CompactMetric label="Com site" value={metrics.companiesWithWebsite} />
+              <CompactMetric label="Com rede social" value={metrics.companiesWithSocial} />
+            </dl>
+            {metrics.enrichedCompanies > 0 && (
+              <p className="mt-2 text-xs text-zinc-500">
+                Completude média: {metrics.completenessBefore}% para{" "}
+                {metrics.completenessAfter}%.
+              </p>
+            )}
+          </section>
         </div>
-        {metrics.enrichedCompanies > 0 && (
-          <p className="text-sm text-zinc-500">
-            Completude média registrada: {metrics.completenessBefore}% para{" "}
-            {metrics.completenessAfter}%.
-          </p>
-        )}
-      </DashboardSection>
+      </div>
     </div>
   );
 }
@@ -205,8 +226,8 @@ function FilterField({
   children: React.ReactNode;
 }) {
   return (
-    <label className="grid gap-1 text-sm">
-      <span className="text-zinc-600">{label}</span>
+    <label className="grid min-w-0 gap-1 text-xs">
+      <span className="truncate text-zinc-600">{label}</span>
       {children}
     </label>
   );
@@ -222,12 +243,12 @@ function Metric({
   value: number;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4">
+    <div className="rounded-lg border border-zinc-200 bg-white p-3">
       <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
         <span>{label}</span>
         {Icon && <Icon size={17} aria-hidden="true" />}
       </div>
-      <strong className="mt-2 block text-2xl">
+      <strong className="mt-1 block text-xl">
         {value.toLocaleString("pt-BR")}
       </strong>
     </div>
@@ -236,8 +257,17 @@ function Metric({
 
 function StatLine({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-3">
+    <div className="flex min-h-8 items-center justify-between gap-3 py-1">
       <dt>{label}</dt>
+      <dd className="font-semibold">{value.toLocaleString("pt-BR")}</dd>
+    </div>
+  );
+}
+
+function CompactMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex min-h-8 items-center justify-between gap-2 border-b border-zinc-100 py-1 text-sm">
+      <dt className="text-zinc-600">{label}</dt>
       <dd className="font-semibold">{value.toLocaleString("pt-BR")}</dd>
     </div>
   );
