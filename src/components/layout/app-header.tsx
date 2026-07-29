@@ -29,7 +29,7 @@ function initials(name: string) {
 
 export function AppHeader({ onOpenNavigation, user }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 sm:px-5 lg:static lg:px-6">
       <Button
         aria-label="Abrir navegação"
         className="lg:hidden"

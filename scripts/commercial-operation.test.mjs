@@ -191,3 +191,29 @@ test("controles de navegação não criam formulários aninhados", () => {
   assert.ok(cursorStart > interactionFormEnd);
   assert.match(source, /form="operation-interaction-form"/);
 });
+
+test("shell e Operação limitam o painel ao viewport no desktop", () => {
+  const shellSource = fs.readFileSync(
+    "src/components/layout/app-shell.tsx",
+    "utf8"
+  );
+  const pageSource = fs.readFileSync(
+    "src/app/(dashboard)/operacao/page.tsx",
+    "utf8"
+  );
+  const workspaceSource = fs.readFileSync(
+    "src/features/operation/components/operation-workspace.tsx",
+    "utf8"
+  );
+
+  assert.match(shellSource, /lg:h-dvh lg:min-h-0 lg:overflow-hidden/);
+  assert.match(shellSource, /flex min-h-0 min-w-0 flex-1 flex-col/);
+  assert.match(
+    shellSource,
+    /min-h-0 min-w-0 flex-1 overflow-y-auto/
+  );
+  assert.match(pageSource, /lg:h-full lg:overflow-hidden/);
+  assert.match(workspaceSource, /lg:min-h-0 lg:flex-1/);
+  assert.match(workspaceSource, /lg:overflow-hidden/);
+  assert.match(workspaceSource, /lg:overflow-y-auto/);
+});

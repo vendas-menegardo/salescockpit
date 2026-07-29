@@ -149,3 +149,12 @@ test("Dashboard atualiza em intervalo moderado apenas quando visível", () => {
   assert.match(source, /document\.visibilityState === "visible"/);
   assert.match(source, /router\.refresh\(\)/);
 });
+
+test("Dashboard usa a altura disponível sem rolagem do documento", () => {
+  const source = fs.readFileSync("src/app/(dashboard)/page.tsx", "utf8");
+
+  assert.match(source, /lg:h-full lg:overflow-hidden/);
+  assert.match(source, /grid min-h-0 flex-1/);
+  assert.match(source, /xl:grid-rows-\[auto_minmax\(0,1fr\)\]/);
+  assert.match(source, /xl:overflow-y-auto/);
+});
