@@ -103,6 +103,7 @@ export function CreateBaseForm() {
           </div>
 
           <Button
+            type="submit"
             className="w-full"
             disabled={loading}
           >
