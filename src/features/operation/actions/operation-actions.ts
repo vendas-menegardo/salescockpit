@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth-session";
 import { isOperationView } from "../constants";
@@ -79,4 +79,5 @@ export async function moveOperationCursor(formData: FormData) {
     view: viewValue,
   });
   revalidatePath("/operacao");
+  refresh();
 }

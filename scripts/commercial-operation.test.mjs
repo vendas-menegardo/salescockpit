@@ -192,6 +192,19 @@ test("controles de navegação não criam formulários aninhados", () => {
   assert.match(source, /form="operation-interaction-form"/);
 });
 
+test("movimentação do cursor atualiza a empresa exibida", () => {
+  const source = fs.readFileSync(
+    "src/features/operation/actions/operation-actions.ts",
+    "utf8"
+  );
+
+  assert.match(source, /import \{ refresh, revalidatePath \} from "next\/cache"/);
+  assert.match(
+    source,
+    /await OperationService\.moveCursor\([\s\S]+revalidatePath\("\/operacao"\);\s+refresh\(\);/
+  );
+});
+
 test("shell e Operação limitam o painel ao viewport no desktop", () => {
   const shellSource = fs.readFileSync(
     "src/components/layout/app-shell.tsx",
