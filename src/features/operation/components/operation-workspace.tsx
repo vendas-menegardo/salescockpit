@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useState } from "react";
 import { ArrowLeft, ArrowRight, Clipboard, Loader2, Phone } from "lucide-react";
 import type {
   CommercialStage,
@@ -65,6 +65,8 @@ export function OperationWorkspace({
   queue,
   baseId,
   view,
+  idempotencyKey,
+  callIdempotencyKey,
   operationScript,
 }: {
   current: MembershipData;
@@ -72,6 +74,8 @@ export function OperationWorkspace({
   queue: MembershipData[];
   baseId: string;
   view: OperationView;
+  idempotencyKey: string;
+  callIdempotencyKey: string;
   operationScript: string | null;
 }) {
   const [state, action, pending] = useActionState(
@@ -83,8 +87,6 @@ export function OperationWorkspace({
     initialCallState
   );
   const [copied, setCopied] = useState(false);
-  const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
-  const callIdempotencyKey = useMemo(() => crypto.randomUUID(), []);
   const index = queue.findIndex(
     (item) => item.companyId === current.companyId
   );

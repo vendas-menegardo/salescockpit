@@ -151,3 +151,26 @@ test("serviço usa idempotência e atualização otimista dentro da transação"
   assert.match(source, /stage: membership\.stage/);
   assert.match(source, /updated\.count !== 1/);
 });
+
+test("chaves idempotentes são criadas no servidor sem divergência de hidratação", () => {
+  const pageSource = fs.readFileSync(
+    "src/app/(dashboard)/operacao/page.tsx",
+    "utf8"
+  );
+  const workspaceSource = fs.readFileSync(
+    "src/features/operation/components/operation-workspace.tsx",
+    "utf8"
+  );
+
+  assert.match(pageSource, /idempotencyKey=\{randomUUID\(\)\}/);
+  assert.match(pageSource, /callIdempotencyKey=\{randomUUID\(\)\}/);
+  assert.doesNotMatch(workspaceSource, /crypto\.randomUUID\(\)/);
+  assert.match(
+    workspaceSource,
+    /name="idempotencyKey"\s+value=\{idempotencyKey\}/
+  );
+  assert.match(
+    workspaceSource,
+    /name="idempotencyKey"\s+value=\{callIdempotencyKey\}/
+  );
+});
