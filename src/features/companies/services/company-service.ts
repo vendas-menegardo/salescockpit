@@ -121,6 +121,7 @@ export class CompanyService {
               select: {
                 id: true,
                 name: true,
+                isActive: true,
               },
             },
           },
@@ -191,6 +192,12 @@ export class CompanyService {
                 id: true,
                 name: true,
               },
+            },
+            corrections: {
+              include: {
+                user: { select: { id: true, name: true } },
+              },
+              orderBy: { createdAt: "desc" },
             },
           },
           orderBy: {

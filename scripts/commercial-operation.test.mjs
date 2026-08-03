@@ -64,6 +64,7 @@ test("interação exige resultado, estágio e chave idempotente", () => {
     baseId: "base-1",
     companyId: "company-1",
     result: "SEM_RESPOSTA",
+    contactUsed: "(27) 99999-0000",
     nextStage: "EM_TENTATIVA",
     idempotencyKey: "a5682d8d-0681-41dc-a07d-986dfb249563",
     view: "not-worked",
@@ -82,6 +83,7 @@ test("retorno exige data e motivo juntos", () => {
     baseId: "base-1",
     companyId: "company-1",
     result: "SOLICITOU_RETORNO",
+    contactUsed: "(27) 99999-0000",
     nextStage: "CONTATO_REALIZADO",
     idempotencyKey: "a5682d8d-0681-41dc-a07d-986dfb249563",
     view: "not-worked",
@@ -190,6 +192,19 @@ test("controles de navegação não criam formulários aninhados", () => {
   assert.ok(interactionFormEnd > interactionFormStart);
   assert.ok(cursorStart > interactionFormEnd);
   assert.match(source, /form="operation-interaction-form"/);
+});
+
+test("movimentação do cursor atualiza a empresa exibida", () => {
+  const source = fs.readFileSync(
+    "src/features/operation/actions/operation-actions.ts",
+    "utf8"
+  );
+
+  assert.match(source, /import \{ refresh, revalidatePath \} from "next\/cache"/);
+  assert.match(
+    source,
+    /await OperationService\.moveCursor\([\s\S]+revalidatePath\("\/operacao"\);\s+refresh\(\);/
+  );
 });
 
 test("shell e Operação limitam o painel ao viewport no desktop", () => {

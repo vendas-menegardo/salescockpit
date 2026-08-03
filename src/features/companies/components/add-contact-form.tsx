@@ -85,7 +85,11 @@ export function AddContactForm({ companyId }: { companyId: string }) {
       </label>
       <label className="flex items-center gap-2 text-sm">
         <input name="isPrimary" type="checkbox" />
-        Contato principal deste tipo
+        Contato principal
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input name="isWhatsapp" type="checkbox" />
+        Disponível no WhatsApp
       </label>
       <div className="flex items-center justify-end gap-3">
         {state.error && (

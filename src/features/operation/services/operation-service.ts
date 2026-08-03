@@ -1,15 +1,37 @@
-import { Prisma } from "@prisma/client";
+import { InteractionResult, Prisma } from "@prisma/client";
 import "server-only";
 import type { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { canonicalPhone } from "@/lib/phone-normalizer";
 import type { OperationView } from "../constants";
 import { COMMERCIAL_STAGE_LABELS } from "../constants";
 import { parseBusinessDateTime } from "../lib/business-time";
 import { buildQueueWhere } from "../lib/queue-filter";
 import type { saveInteractionSchema } from "../validations/operation-schema";
+import type {
+  communicationEventSchema,
+  updateQualificationSchema,
+} from "../validations/operation-schema";
 
 type SaveInteractionInput = z.infer<typeof saveInteractionSchema> & {
+  userId: string;
+};
+
+type QualificationInput = z.infer<typeof updateQualificationSchema> & {
+  userId: string;
+};
+
+type CommunicationInput = z.infer<typeof communicationEventSchema> & {
+  userId: string;
+  idempotencyKey: string;
+};
+
+type CorrectInteractionInput = {
+  companyId: string;
+  interactionId: string;
+  correctedResult: InteractionResult;
+  reason: string;
   userId: string;
 };
 
@@ -34,14 +56,149 @@ const companyInclude = {
 } satisfies Prisma.BaseCompanyInclude;
 
 export class OperationService {
+  static async correctLatestInteraction(input: CorrectInteractionInput) {
+    return prisma.$transaction(async (tx) => {
+      const latest = await tx.salesInteraction.findFirst({
+        where: { companyId: input.companyId, result: { not: null } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          corrections: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { correctedResult: true },
+          },
+        },
+      });
+      if (!latest || latest.id !== input.interactionId) {
+        throw new Error("INTERACTION_NOT_LATEST");
+      }
+      const previousResult =
+        latest.corrections[0]?.correctedResult ?? latest.result;
+      return tx.interactionCorrection.create({
+        data: {
+          interactionId: latest.id,
+          userId: input.userId,
+          previousResult,
+          correctedResult: input.correctedResult,
+          reason: input.reason,
+        },
+      });
+    });
+  }
+
+  static async updateQualification(input: QualificationInput) {
+    return prisma.$transaction(async (tx) => {
+      const membership = await tx.baseCompany.findUnique({
+        where: {
+          baseId_companyId: {
+            baseId: input.baseId,
+            companyId: input.companyId,
+          },
+        },
+        select: { qualification: true, qualificationReason: true },
+      });
+      if (!membership) throw new Error("MEMBERSHIP_NOT_FOUND");
+      if (
+        membership.qualification === input.qualification &&
+        membership.qualificationReason === (input.reason || null)
+      ) {
+        return { unchanged: true };
+      }
+
+      await tx.baseCompany.update({
+        where: {
+          baseId_companyId: {
+            baseId: input.baseId,
+            companyId: input.companyId,
+          },
+        },
+        data: {
+          qualification: input.qualification,
+          qualificationReason: input.reason || null,
+        },
+      });
+      await tx.baseCompanyChange.create({
+        data: {
+          baseId: input.baseId,
+          companyId: input.companyId,
+          userId: input.userId,
+          type: "QUALIFICATION_CHANGED",
+          reason: input.reason,
+          previousState: {
+            qualification: membership.qualification,
+            reason: membership.qualificationReason,
+          },
+          nextState: {
+            qualification: input.qualification,
+            reason: input.reason || null,
+          },
+        },
+      });
+      return { unchanged: false };
+    });
+  }
+
+  static async recordCommunication(input: CommunicationInput) {
+    return prisma.$transaction(async (tx) => {
+      const membership = await tx.baseCompany.findUnique({
+        where: {
+          baseId_companyId: {
+            baseId: input.baseId,
+            companyId: input.companyId,
+          },
+        },
+        select: { stage: true },
+      });
+      if (!membership) throw new Error("MEMBERSHIP_NOT_FOUND");
+      const contact = input.contactId
+        ? await tx.companyContact.findFirst({
+            where: {
+              id: input.contactId,
+              companyId: input.companyId,
+              archivedAt: null,
+            },
+            select: { id: true },
+          })
+        : null;
+      if (input.contactId && !contact) throw new Error("CONTACT_NOT_FOUND");
+
+      const notes = [
+        input.subject ? `Assunto: ${input.subject}` : null,
+        input.message || null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      return tx.salesInteraction.create({
+        data: {
+          baseId: input.baseId,
+          companyId: input.companyId,
+          userId: input.userId,
+          contactId: contact?.id,
+          channel: input.channel,
+          contactUsed: input.contactUsed,
+          result: input.result,
+          notes: notes || null,
+          previousStage: membership.stage,
+          nextStage: membership.stage,
+          idempotencyKey: input.idempotencyKey,
+          dispositionKey: input.idempotencyKey,
+          startedAt: new Date(),
+          endedAt: new Date(),
+        },
+      });
+    });
+  }
+
   static async getWorkspace({
     userId,
     baseId,
     view,
+    companyId,
   }: {
     userId: string;
     baseId?: string;
     view: OperationView;
+    companyId?: string;
   }) {
     const bases = await prisma.base.findMany({
       where: { isActive: true },
@@ -97,7 +254,17 @@ export class OperationService {
           include: companyInclude,
         })))
       : null;
-    const current = cursorCurrent ?? queue[0] ?? null;
+    const requestedCompany = companyId
+      ? await prisma.baseCompany.findFirst({
+          where: {
+            baseId: selectedBaseId,
+            companyId,
+            OR: [{ assignedUserId: null }, { assignedUserId: userId }],
+          },
+          include: companyInclude,
+        })
+      : null;
+    const current = requestedCompany ?? cursorCurrent ?? queue[0] ?? null;
     const previous =
       cursor?.previousCompanyId &&
       cursor.previousCompanyId !== current?.companyId
@@ -130,7 +297,7 @@ export class OperationService {
               companyId: input.companyId,
             },
           },
-          select: { stage: true, assignedUserId: true },
+          select: { stage: true, qualification: true, assignedUserId: true },
         });
         if (!membership) throw new Error("MEMBERSHIP_NOT_FOUND");
         if (
@@ -138,6 +305,115 @@ export class OperationService {
           membership.assignedUserId !== input.userId
         ) {
           throw new Error("COMPANY_ASSIGNED");
+        }
+
+        let selectedContact = input.contactId
+          ? await tx.companyContact.findFirst({
+              where: {
+                id: input.contactId,
+                companyId: input.companyId,
+                archivedAt: null,
+              },
+              select: {
+                id: true,
+                companyId: true,
+                type: true,
+                value: true,
+                canonicalValue: true,
+                isPrimary: true,
+                isWhatsapp: true,
+                validity: true,
+                invalidReason: true,
+                archivedAt: true,
+              },
+            })
+          : null;
+        if (input.contactId && !selectedContact) {
+          throw new Error("CONTACT_NOT_FOUND");
+        }
+        const fallbackCanonical = !selectedContact
+          ? canonicalPhone(input.contactUsed)
+          : null;
+        if (!selectedContact && fallbackCanonical && input.contactUsed) {
+          selectedContact = await tx.companyContact.findFirst({
+            where: {
+              companyId: input.companyId,
+              type: { in: ["PHONE", "WHATSAPP"] },
+              archivedAt: null,
+              OR: [
+                { canonicalValue: fallbackCanonical },
+                { value: input.contactUsed },
+              ],
+            },
+            select: {
+              id: true,
+              companyId: true,
+              type: true,
+              value: true,
+              canonicalValue: true,
+              isPrimary: true,
+              isWhatsapp: true,
+              validity: true,
+              invalidReason: true,
+              archivedAt: true,
+            },
+          });
+          if (selectedContact && !selectedContact.canonicalValue) {
+            selectedContact = await tx.companyContact.update({
+              where: { id: selectedContact.id },
+              data: {
+                canonicalValue: fallbackCanonical,
+                originalValue: selectedContact.value,
+              },
+              select: {
+                id: true,
+                companyId: true,
+                type: true,
+                value: true,
+                canonicalValue: true,
+                isPrimary: true,
+                isWhatsapp: true,
+                validity: true,
+                invalidReason: true,
+                archivedAt: true,
+              },
+            });
+          }
+          if (!selectedContact) {
+            selectedContact = await tx.companyContact.create({
+              data: {
+                companyId: input.companyId,
+                type: "PHONE",
+                value: input.contactUsed,
+                originalValue: input.contactUsed,
+                canonicalValue: fallbackCanonical,
+                source: "OPERACAO",
+                createdByUserId: input.userId,
+              },
+              select: {
+                id: true,
+                companyId: true,
+                type: true,
+                value: true,
+                canonicalValue: true,
+                isPrimary: true,
+                isWhatsapp: true,
+                validity: true,
+                invalidReason: true,
+                archivedAt: true,
+              },
+            });
+            await tx.companyContactEvent.create({
+              data: {
+                contactId: selectedContact.id,
+                companyId: input.companyId,
+                userId: input.userId,
+                type: "CREATED",
+                reason: "Contato materializado a partir do telefone importado.",
+                nextState: selectedContact,
+              },
+            });
+          }
         }
 
         const apiInteraction = input.apiInteractionId
@@ -160,6 +436,7 @@ export class OperationService {
                 result: input.result,
                 nextStage: input.nextStage,
                 previousStage: membership.stage,
+                contactId: selectedContact?.id ?? null,
                 contactUsed: input.contactUsed || null,
                 notes: input.notes || null,
                 dispositionKey: input.idempotencyKey,
@@ -173,6 +450,7 @@ export class OperationService {
                 result: input.result,
                 nextStage: input.nextStage,
                 previousStage: membership.stage,
+                contactId: selectedContact?.id ?? null,
                 contactUsed: input.contactUsed || null,
                 notes: input.notes || null,
                 idempotencyKey: input.idempotencyKey,
@@ -181,6 +459,73 @@ export class OperationService {
                 endedAt: new Date(),
               },
             });
+
+        const invalidReason =
+          input.result === "NUMERO_ERRADO"
+            ? "WRONG_NUMBER"
+            : input.result === "NUMERO_INEXISTENTE"
+              ? "NONEXISTENT"
+              : null;
+        if (invalidReason && selectedContact) {
+          const invalidatedAt = new Date();
+          const updatedContact = await tx.companyContact.update({
+            where: { id: selectedContact.id },
+            data: {
+              validity: "INVALID",
+              invalidReason,
+              invalidatedAt,
+              invalidatedByUserId: input.userId,
+              validatedAt: invalidatedAt,
+              isPrimary: false,
+            },
+            select: {
+              type: true,
+              value: true,
+              canonicalValue: true,
+              isPrimary: true,
+              isWhatsapp: true,
+              validity: true,
+              invalidReason: true,
+              archivedAt: true,
+            },
+          });
+          await tx.companyContactEvent.create({
+            data: {
+              contactId: selectedContact.id,
+              companyId: input.companyId,
+              userId: input.userId,
+              type: "INVALIDATED",
+              reason:
+                invalidReason === "WRONG_NUMBER"
+                  ? "Número errado"
+                  : "Número inexistente",
+              previousState: selectedContact,
+              nextState: updatedContact,
+            },
+          });
+
+          const usablePhones = await tx.companyContact.count({
+            where: {
+              companyId: input.companyId,
+              type: { in: ["PHONE", "WHATSAPP"] },
+              archivedAt: null,
+              validity: { not: "INVALID" },
+            },
+          });
+          if (usablePhones === 0) {
+            await tx.baseCompanyChange.create({
+              data: {
+                baseId: input.baseId,
+                companyId: input.companyId,
+                userId: input.userId,
+                type: "CONTACT_UPDATE_RECOMMENDED",
+                reason: "Nenhum telefone utilizável permanece cadastrado.",
+                previousState: { qualification: membership.qualification },
+                nextState: { suggestedQualification: "ATUALIZAR_CONTATO" },
+              },
+            });
+          }
+        }
 
         const updated = await tx.baseCompany.updateMany({
           where: {
@@ -197,6 +542,19 @@ export class OperationService {
           },
         });
         if (updated.count !== 1) throw new Error("CONCURRENT_UPDATE");
+
+        if (membership.stage !== input.nextStage) {
+          await tx.baseCompanyChange.create({
+            data: {
+              baseId: input.baseId,
+              companyId: input.companyId,
+              userId: input.userId,
+              type: "STAGE_CHANGED",
+              previousState: { stage: membership.stage },
+              nextState: { stage: input.nextStage },
+            },
+          });
+        }
 
         if (input.followUpAt && input.followUpReason) {
           await tx.followUpTask.create({

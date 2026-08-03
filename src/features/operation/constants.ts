@@ -1,5 +1,6 @@
 import type {
   CommercialStage,
+  CompanyQualification,
   ContactType,
   ContactValidity,
   InteractionResult,
@@ -19,10 +20,13 @@ export const COMMERCIAL_STAGE_LABELS: Record<CommercialStage, string> = {
 };
 
 export const INTERACTION_RESULT_LABELS: Record<InteractionResult, string> = {
+  ATENDEU: "Atendeu",
   SEM_RESPOSTA: "Sem resposta",
   OCUPADO: "Ocupado",
   CAIXA_POSTAL: "Caixa postal",
   NUMERO_INVALIDO: "Número inválido",
+  NUMERO_ERRADO: "Número errado",
+  NUMERO_INEXISTENTE: "Número inexistente",
   ERRO_TECNICO: "Erro técnico",
   PESSOA_ERRADA: "Atendeu outra pessoa",
   RECEPCAO: "Recepção ou portaria",
@@ -33,6 +37,41 @@ export const INTERACTION_RESULT_LABELS: Record<InteractionResult, string> = {
   EMPRESA_INADEQUADA: "Empresa inadequada",
   EMPRESA_QUALIFICADA: "Empresa qualificada",
   REUNIAO_AGENDADA: "Reunião agendada",
+  EMAIL_PREPARADO: "E-mail preparado",
+  EMAIL_ENVIADO: "E-mail enviado",
+  EMAIL_RESPOSTA: "Resposta por e-mail",
+  WHATSAPP_PREPARADO: "WhatsApp preparado",
+  WHATSAPP_ENVIADO: "WhatsApp enviado",
+};
+
+export const CALL_INTERACTION_RESULTS: InteractionResult[] = [
+  "ATENDEU",
+  "SEM_RESPOSTA",
+  "CAIXA_POSTAL",
+  "OCUPADO",
+  "NUMERO_ERRADO",
+  "NUMERO_INEXISTENTE",
+  "ERRO_TECNICO",
+  "PESSOA_ERRADA",
+  "RECEPCAO",
+  "RESPONSAVEL_INDISPONIVEL",
+  "SOLICITOU_RETORNO",
+  "FALOU_COM_RESPONSAVEL",
+  "SEM_INTERESSE",
+  "EMPRESA_INADEQUADA",
+  "EMPRESA_QUALIFICADA",
+  "REUNIAO_AGENDADA",
+];
+
+export const COMPANY_QUALIFICATION_LABELS: Record<
+  CompanyQualification,
+  string
+> = {
+  EM_OPERACAO: "Em operação",
+  ATUALIZAR_CONTATO: "Atualizar contato",
+  CONGELADA: "Congelada",
+  PERDIDA: "Perdida",
+  INAPTA: "Inapta",
 };
 
 export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {

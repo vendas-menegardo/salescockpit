@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { normalizeBrazilianPhone } from "@/lib/phone-normalizer";
 import {
   IMPORT_LOOKUP_BATCH_SIZE,
   IMPORT_PROCESS_BATCH_SIZE,
@@ -765,6 +766,61 @@ export class ImportService {
           }
 
           await fillEmptyCompanyFields(tx, fieldUpdates);
+
+          const companiesByCnpj = new Map(
+            companies.flatMap((company) =>
+              company.cnpj ? [[company.cnpj, company] as const] : []
+            )
+          );
+          const importedContacts = new Map<
+            string,
+            {
+              companyId: string;
+              type: "PHONE" | "EMAIL";
+              value: string;
+              originalValue: string;
+              canonicalValue: string;
+              source: string;
+            }
+          >();
+          for (const row of rows) {
+            const company = companiesByCnpj.get(row.cnpj);
+            if (!company) continue;
+
+            const normalizedPhone = normalizeBrazilianPhone(row.phone);
+            if (!normalizedPhone.ambiguous) {
+              for (const candidate of normalizedPhone.candidates) {
+                importedContacts.set(
+                  `${company.id}:PHONE:${candidate.canonical}`,
+                  {
+                    companyId: company.id,
+                    type: "PHONE",
+                    value: candidate.display,
+                    originalValue: row.phone,
+                    canonicalValue: candidate.canonical,
+                    source: "IMPORTACAO",
+                  }
+                );
+              }
+            }
+            const email = row.email.trim().toLowerCase();
+            if (email) {
+              importedContacts.set(`${company.id}:EMAIL:${email}`, {
+                companyId: company.id,
+                type: "EMAIL",
+                value: row.email.trim(),
+                originalValue: row.email,
+                canonicalValue: email,
+                source: "IMPORTACAO",
+              });
+            }
+          }
+          if (importedContacts.size > 0) {
+            await tx.companyContact.createMany({
+              data: [...importedContacts.values()],
+              skipDuplicates: true,
+            });
+          }
 
           const createdMemberships =
             companies.length === 0

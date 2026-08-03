@@ -52,6 +52,7 @@ export default async function EmpresasPage({
     params.set("page", String(nextPage));
     return `/empresas?${params.toString()}`;
   }
+  const returnTo = pageHref(page);
 
   return (
     <div className="space-y-6">
@@ -120,7 +121,14 @@ export default async function EmpresasPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {companies.map((company) => (
+                {companies.map((company) => {
+                  const operationMembership =
+                    company.bases.find(
+                      (membership) =>
+                        membership.baseId === baseId && membership.base.isActive
+                    ) ??
+                    company.bases.find((membership) => membership.base.isActive);
+                  return (
                   <tr key={company.id}>
                     <td className="px-4 py-3 font-mono text-xs">
                       {formatCnpj(company.cnpj)}
@@ -158,6 +166,20 @@ export default async function EmpresasPage({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-1.5">
+                      {operationMembership && (
+                        <Button
+                          size="sm"
+                          nativeButton={false}
+                          render={
+                            <Link
+                              href={`/operacao?baseId=${operationMembership.baseId}&companyId=${company.id}&returnTo=${encodeURIComponent(returnTo)}`}
+                            />
+                          }
+                        >
+                          Operação
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
@@ -166,9 +188,11 @@ export default async function EmpresasPage({
                       >
                         Abrir
                       </Button>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

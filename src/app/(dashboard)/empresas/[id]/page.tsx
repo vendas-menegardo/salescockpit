@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AddContactForm } from "@/features/companies/components/add-contact-form";
 import { EditCompanyProfileForm } from "@/features/companies/components/edit-company-profile-form";
-import { updateCompanyContact } from "@/features/companies/actions/company-contact-actions";
+import { InteractionCorrectionForm } from "@/features/companies/components/interaction-correction-form";
+import { OperationContactPanel } from "@/features/operation/components/operation-contact-panel";
 import { CompanyService } from "@/features/companies/services/company-service";
 import { calculateCompanyCompleteness } from "@/features/companies/lib/company-completeness";
 import { formatCnpj } from "@/features/import/lib/import-utils";
@@ -35,6 +36,12 @@ export default async function CompanyDetailsPage({
     ...company,
     contactCount: company.contacts.length,
   });
+  const activeOperationMembership = company.bases.find(
+    (membership) => membership.base.isActive
+  );
+  const latestResultInteractionId = company.interactions.find(
+    (interaction) => interaction.result
+  )?.id;
 
   return (
     <div className="space-y-6">
@@ -48,7 +55,21 @@ export default async function CompanyDetailsPage({
           <ArrowLeft data-icon="inline-start" />
           Empresas
         </Button>
-        <h1 className="text-2xl font-bold">{company.corporateName}</h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold">{company.corporateName}</h1>
+          {activeOperationMembership && (
+            <Button
+              nativeButton={false}
+              render={
+                <Link
+                  href={`/operacao?baseId=${activeOperationMembership.baseId}&companyId=${company.id}&returnTo=/empresas/${company.id}`}
+                />
+              }
+            >
+              Abrir na Operação
+            </Button>
+          )}
+        </div>
         <p className="mt-1 font-mono text-sm text-zinc-500">
           {formatCnpj(company.cnpj)}
         </p>
@@ -108,9 +129,12 @@ export default async function CompanyDetailsPage({
         </div>
 
         <div className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <ContactRound size={18} /> Contatos
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 font-semibold">
+              <ContactRound size={18} /> Contatos
+            </h2>
+            <OperationContactPanel companyId={company.id} contacts={company.contacts} />
+          </div>
           {importedContacts.map((contact) => (
             <div key={contact.label} className="text-sm">
               <span className="text-zinc-500">{contact.label}: </span>
@@ -135,29 +159,6 @@ export default async function CompanyDetailsPage({
                   .join(" · ")}
                 </span>
               )}
-              <div className="ml-auto flex flex-wrap gap-1">
-                {!contact.isPrimary && contact.validity !== "INVALID" && (
-                  <ContactAction
-                    contactId={contact.id}
-                    intent="primary"
-                    label="Tornar principal"
-                  />
-                )}
-                {contact.validity !== "VALID" && (
-                  <ContactAction
-                    contactId={contact.id}
-                    intent="valid"
-                    label="Validar"
-                  />
-                )}
-                {contact.validity !== "INVALID" && (
-                  <ContactAction
-                    contactId={contact.id}
-                    intent="invalid"
-                    label="Invalidar"
-                  />
-                )}
-              </div>
             </div>
           ))}
           <AddContactForm companyId={company.id} />
@@ -174,12 +175,15 @@ export default async function CompanyDetailsPage({
           </p>
         ) : (
           <div className="divide-y divide-zinc-100">
-            {company.interactions.map((interaction) => (
+            {company.interactions.map((interaction) => {
+              const effectiveResult =
+                interaction.corrections[0]?.correctedResult ?? interaction.result;
+              return (
               <article key={interaction.id} className="py-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <strong>
-                    {interaction.result
-                      ? INTERACTION_RESULT_LABELS[interaction.result]
+                    {effectiveResult
+                      ? INTERACTION_RESULT_LABELS[effectiveResult]
                       : "Ligação iniciada"}
                   </strong>
                   <Badge variant="outline">{interaction.base.name}</Badge>
@@ -193,8 +197,21 @@ export default async function CompanyDetailsPage({
                     {interaction.notes}
                   </p>
                 )}
+                {interaction.corrections.length > 0 && (
+                  <p className="mt-1 text-xs text-amber-700">
+                    Resultado corrigido com auditoria por {interaction.corrections[0].user.name}.
+                  </p>
+                )}
+                {interaction.id === latestResultInteractionId && effectiveResult && (
+                  <InteractionCorrectionForm
+                    companyId={company.id}
+                    interactionId={interaction.id}
+                    currentResult={effectiveResult}
+                  />
+                )}
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -237,25 +254,5 @@ export default async function CompanyDetailsPage({
         )}
       </section>
     </div>
-  );
-}
-
-function ContactAction({
-  contactId,
-  intent,
-  label,
-}: {
-  contactId: string;
-  intent: "valid" | "invalid" | "primary";
-  label: string;
-}) {
-  return (
-    <form action={updateCompanyContact}>
-      <input type="hidden" name="contactId" value={contactId} />
-      <input type="hidden" name="intent" value={intent} />
-      <Button type="submit" size="xs" variant="ghost">
-        {label}
-      </Button>
-    </form>
   );
 }
