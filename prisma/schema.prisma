@@ -42,10 +42,13 @@ enum InteractionOrigin {
 }
 
 enum InteractionResult {
+  ATENDEU
   SEM_RESPOSTA
   OCUPADO
   CAIXA_POSTAL
   NUMERO_INVALIDO
+  NUMERO_ERRADO
+  NUMERO_INEXISTENTE
   ERRO_TECNICO
   PESSOA_ERRADA
   RECEPCAO
@@ -56,6 +59,11 @@ enum InteractionResult {
   EMPRESA_INADEQUADA
   EMPRESA_QUALIFICADA
   REUNIAO_AGENDADA
+  EMAIL_PREPARADO
+  EMAIL_ENVIADO
+  EMAIL_RESPOSTA
+  WHATSAPP_PREPARADO
+  WHATSAPP_ENVIADO
 }
 
 enum FollowUpStatus {
@@ -79,6 +87,37 @@ enum ContactValidity {
   INVALID
 }
 
+enum ContactInvalidReason {
+  WRONG_NUMBER
+  NONEXISTENT
+  INVALID_EMAIL
+  OTHER
+}
+
+enum ContactEventType {
+  CREATED
+  UPDATED
+  PRIMARY_CHANGED
+  VALIDATED
+  INVALIDATED
+  ARCHIVED
+  RESTORED
+}
+
+enum CompanyQualification {
+  EM_OPERACAO
+  ATUALIZAR_CONTATO
+  CONGELADA
+  PERDIDA
+  INAPTA
+}
+
+enum MembershipChangeType {
+  QUALIFICATION_CHANGED
+  STAGE_CHANGED
+  CONTACT_UPDATE_RECOMMENDED
+}
+
 enum CompanyChangeOrigin {
   MANUAL
   PROVIDER
@@ -92,27 +131,32 @@ enum EnrichmentJobStatus {
 }
 
 model User {
-  id                  String              @id
-  name                String
-  email               String              @unique
-  emailVerified       Boolean             @default(false)
-  image               String?
-  role                String              @default("user")
-  banned              Boolean             @default(false)
-  banReason           String?
-  banExpires          DateTime?
-  sessions            Session[]
-  accounts            Account[]
-  companyContacts     CompanyContact[]
-  interactions        SalesInteraction[]
-  followUps           FollowUpTask[]
-  operationCursors    OperationCursor[]
-  assignedMemberships BaseCompany[]       @relation("AssignedMemberships")
-  companyDataChanges  CompanyDataChange[]
-  enrichmentJobs      EnrichmentJob[]
-  api4ComExtension    String?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  id                     String                  @id
+  name                   String
+  email                  String                  @unique
+  emailVerified          Boolean                 @default(false)
+  image                  String?
+  role                   String                  @default("user")
+  banned                 Boolean                 @default(false)
+  banReason              String?
+  banExpires             DateTime?
+  sessions               Session[]
+  accounts               Account[]
+  companyContacts        CompanyContact[]
+  invalidatedContacts    CompanyContact[]        @relation("ContactInvalidations")
+  archivedContacts       CompanyContact[]        @relation("ContactArchives")
+  contactEvents          CompanyContactEvent[]
+  interactions           SalesInteraction[]
+  interactionCorrections InteractionCorrection[]
+  followUps              FollowUpTask[]
+  operationCursors       OperationCursor[]
+  assignedMemberships    BaseCompany[]           @relation("AssignedMemberships")
+  membershipChanges      BaseCompanyChange[]
+  companyDataChanges     CompanyDataChange[]
+  enrichmentJobs         EnrichmentJob[]
+  api4ComExtension       String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 
   @@index([role, banned])
 }
@@ -216,6 +260,7 @@ model Company {
 
   bases            BaseCompany[]
   contacts         CompanyContact[]
+  contactEvents    CompanyContactEvent[]
   interactions     SalesInteraction[]
   followUps        FollowUpTask[]
   operationCursors OperationCursor[]
@@ -234,14 +279,17 @@ model BaseCompany {
   baseId    String
   companyId String
 
-  status            String?         @default("Novo")
-  stage             CommercialStage @default(NOVA)
-  assignedUserId    String?
-  lastInteractionAt DateTime?
+  status              String?               @default("Novo")
+  stage               CommercialStage       @default(NOVA)
+  qualification       CompanyQualification?
+  qualificationReason String?
+  assignedUserId      String?
+  lastInteractionAt   DateTime?
 
-  base         Base    @relation(fields: [baseId], references: [id], onDelete: Cascade)
-  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  assignedUser User?   @relation("AssignedMemberships", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  base         Base                @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedUser User?               @relation("AssignedMemberships", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  changes      BaseCompanyChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -253,29 +301,65 @@ model BaseCompany {
 }
 
 model CompanyContact {
-  id              String          @id @default(cuid())
-  companyId       String
-  type            ContactType
-  value           String
-  isPrimary       Boolean         @default(false)
-  responsibleName String?
-  role            String?
-  source          String?
-  validity        ContactValidity @default(UNKNOWN)
-  validatedAt     DateTime?
-  notes           String?
-  createdByUserId String?
+  id                  String                @id @default(cuid())
+  companyId           String
+  type                ContactType
+  value               String
+  originalValue       String?
+  canonicalValue      String?
+  isPrimary           Boolean               @default(false)
+  isWhatsapp          Boolean               @default(false)
+  responsibleName     String?
+  role                String?
+  source              String?
+  validity            ContactValidity       @default(UNKNOWN)
+  validatedAt         DateTime?
+  invalidReason       ContactInvalidReason?
+  invalidatedAt       DateTime?
+  invalidatedByUserId String?
+  archivedAt          DateTime?
+  archivedByUserId    String?
+  notes               String?
+  createdByUserId     String?
 
-  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdByUser User?              @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
-  interactions  SalesInteraction[]
+  company           Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser     User?                 @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  invalidatedByUser User?                 @relation("ContactInvalidations", fields: [invalidatedByUserId], references: [id], onDelete: SetNull)
+  archivedByUser    User?                 @relation("ContactArchives", fields: [archivedByUserId], references: [id], onDelete: SetNull)
+  interactions      SalesInteraction[]
+  events            CompanyContactEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, type, value])
   @@index([companyId, isPrimary])
+  @@index([companyId, canonicalValue])
+  @@index([companyId, archivedAt])
   @@index([createdByUserId])
+  @@index([invalidatedByUserId])
+  @@index([archivedByUserId])
+}
+
+model CompanyContactEvent {
+  id            String           @id @default(cuid())
+  contactId     String
+  companyId     String
+  userId        String?
+  type          ContactEventType
+  reason        String?
+  previousState Json?
+  nextState     Json?
+
+  contact CompanyContact @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user    User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([contactId, createdAt])
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model SalesInteraction {
@@ -301,17 +385,54 @@ model SalesInteraction {
   hangupCause     String?
   recordingUrl    String?
 
-  company   Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  base      Base            @relation(fields: [baseId], references: [id], onDelete: Restrict)
-  user      User            @relation(fields: [userId], references: [id], onDelete: Restrict)
-  contact   CompanyContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  followUps FollowUpTask[]
+  company     Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  base        Base                    @relation(fields: [baseId], references: [id], onDelete: Restrict)
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  contact     CompanyContact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  followUps   FollowUpTask[]
+  corrections InteractionCorrection[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([companyId, createdAt])
   @@index([baseId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model InteractionCorrection {
+  id              String             @id @default(cuid())
+  interactionId   String
+  userId          String
+  previousResult  InteractionResult?
+  correctedResult InteractionResult
+  reason          String
+
+  interaction SalesInteraction @relation(fields: [interactionId], references: [id], onDelete: Restrict)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([interactionId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model BaseCompanyChange {
+  id            String               @id @default(cuid())
+  baseId        String
+  companyId     String
+  userId        String?
+  type          MembershipChangeType
+  reason        String?
+  previousState Json?
+  nextState     Json?
+
+  membership BaseCompany @relation(fields: [baseId, companyId], references: [baseId, companyId], onDelete: Restrict)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([baseId, companyId, createdAt])
   @@index([userId, createdAt])
 }
 
