@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -202,13 +202,6 @@ export function OperationWorkspace({
     availableEmails[0]?.key ?? ""
   );
 
-  useEffect(() => {
-    setSelectedPhoneKey(availablePhones[0]?.key ?? "");
-    setSelectedEmailKey(availableEmails[0]?.key ?? "");
-    setCommunicationMessage("");
-    setEmailSubject("");
-    setCommunicationStatus(null);
-  }, [current.companyId]);
   const selectedPhone =
     availablePhones.find((item) => item.key === selectedPhoneKey) ??
     availablePhones[0];

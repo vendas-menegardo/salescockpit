@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --import tsx --test scripts/*.test.mjs",
-    "test:import": "node --test scripts/import-validation.test.mjs",
+    "test:import": "node --import tsx --test scripts/import-validation.test.mjs",
     "test:commercial": "node scripts/run-commercial-test.mjs",
     "test:operational": "node scripts/run-operational-test.mjs",
     "contacts:normalize": "node --env-file=.env --import tsx scripts/normalize-company-contacts.ts",
