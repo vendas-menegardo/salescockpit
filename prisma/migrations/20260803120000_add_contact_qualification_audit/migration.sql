@@ -1,3 +1,5 @@
+BEGIN;
+
 -- CreateEnum
 CREATE TYPE "ContactInvalidReason" AS ENUM ('WRONG_NUMBER', 'NONEXISTENT', 'INVALID_EMAIL', 'OTHER');
 
@@ -128,3 +130,5 @@ ALTER TABLE "InteractionCorrection" ADD CONSTRAINT "InteractionCorrection_intera
 ALTER TABLE "InteractionCorrection" ADD CONSTRAINT "InteractionCorrection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "BaseCompanyChange" ADD CONSTRAINT "BaseCompanyChange_baseId_companyId_fkey" FOREIGN KEY ("baseId", "companyId") REFERENCES "BaseCompany"("baseId", "companyId") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "BaseCompanyChange" ADD CONSTRAINT "BaseCompanyChange_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+COMMIT;

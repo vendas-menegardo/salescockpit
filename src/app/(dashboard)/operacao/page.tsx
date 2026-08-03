@@ -15,7 +15,12 @@ import { requireSession } from "@/lib/auth-session";
 export default async function OperacaoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ baseId?: string; view?: string }>;
+  searchParams: Promise<{
+    baseId?: string;
+    view?: string;
+    companyId?: string;
+    returnTo?: string;
+  }>;
 }) {
   const session = await requireSession();
   const params = await searchParams;
@@ -25,6 +30,7 @@ export default async function OperacaoPage({
     userId: session.user.id,
     baseId: params.baseId,
     view,
+    companyId: params.companyId,
   });
 
   return (
@@ -118,6 +124,9 @@ export default async function OperacaoPage({
             queue={workspace.queue}
             baseId={workspace.selectedBaseId}
             view={view}
+            returnTo={
+              params.returnTo?.startsWith("/empresas") ? params.returnTo : undefined
+            }
             idempotencyKey={randomUUID()}
             callIdempotencyKey={randomUUID()}
             operationScript={

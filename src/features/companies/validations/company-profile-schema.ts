@@ -22,3 +22,10 @@ export const companyProfileSchema = z.object({
   state: z.string().trim().max(2).transform((value) => value.toUpperCase() || null),
   notes: optionalText(4000),
 });
+
+export const quickCompanyProfileSchema = z.object({
+  companyId: z.string().min(1),
+  tradeName: optionalText(255),
+  contactName: optionalText(255),
+  notes: optionalText(4000),
+});

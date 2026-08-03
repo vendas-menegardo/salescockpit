@@ -4,13 +4,24 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth-session";
-import { prisma } from "@/lib/prisma";
-import { companyContactSchema } from "../validations/company-contact-schema";
+import { CompanyContactService } from "../services/company-contact-service";
+import {
+  companyContactSchema,
+  editCompanyContactSchema,
+} from "../validations/company-contact-schema";
 
 export type ContactActionState = {
   error?: string;
   success?: boolean;
 };
+
+function revalidateCompanyContactPaths(companyId: string) {
+  revalidatePath(`/empresas/${companyId}`);
+  revalidatePath("/operacao");
+  revalidatePath("/pesquisa");
+  revalidatePath("/");
+  revalidatePath("/relatorios");
+}
 
 export async function addCompanyContact(
   _previousState: ContactActionState,
@@ -22,6 +33,7 @@ export async function addCompanyContact(
     type: formData.get("type"),
     value: formData.get("value"),
     isPrimary: formData.get("isPrimary") === "on",
+    isWhatsapp: formData.get("isWhatsapp") === "on",
     responsibleName: formData.get("responsibleName") || undefined,
     role: formData.get("role") || undefined,
     source: formData.get("source") || undefined,
@@ -33,92 +45,105 @@ export async function addCompanyContact(
     return { error: "Revise os dados do contato e tente novamente." };
   }
 
-  const company = await prisma.company.findUnique({
-    where: { id: parsed.data.companyId },
-    select: { id: true },
-  });
-  if (!company) {
-    return { error: "A empresa informada não foi encontrada." };
-  }
-
   try {
-    await prisma.$transaction(async (tx) => {
-      if (parsed.data.isPrimary) {
-        await tx.companyContact.updateMany({
-          where: {
-            companyId: parsed.data.companyId,
-            type: parsed.data.type,
-          },
-          data: { isPrimary: false },
-        });
-      }
-      await tx.companyContact.create({
-        data: {
-          ...parsed.data,
-          createdByUserId: session.user.id,
-          validatedAt:
-            parsed.data.validity === "UNKNOWN" ? null : new Date(),
-        },
-      });
+    await CompanyContactService.create({
+      ...parsed.data,
+      userId: session.user.id,
     });
   } catch (error) {
     if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
+      (error instanceof Error && error.message === "DUPLICATE_CONTACT") ||
+      (error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002")
     ) {
       return { error: "Este contato já está cadastrado para a empresa." };
+    }
+    if (error instanceof Error && error.message === "COMPANY_NOT_FOUND") {
+      return { error: "A empresa informada não foi encontrada." };
+    }
+    if (error instanceof Error && error.message === "INVALID_CONTACT_VALUE") {
+      return { error: "Informe um contato válido." };
     }
     return { error: "Não foi possível salvar o contato." };
   }
 
-  revalidatePath(`/empresas/${parsed.data.companyId}`);
-  revalidatePath("/pesquisa");
-  revalidatePath("/");
-  revalidatePath("/relatorios");
+  revalidateCompanyContactPaths(parsed.data.companyId);
   return { success: true };
 }
 
+const contactIntents = [
+  "valid",
+  "primary",
+  "whatsapp",
+  "not_whatsapp",
+  "invalid_wrong",
+  "invalid_nonexistent",
+  "invalid_email",
+  "archive",
+  "restore",
+] as const;
+
 export async function updateCompanyContact(formData: FormData) {
-  await requireSession();
+  const session = await requireSession();
   const contactId = String(formData.get("contactId") || "");
   const intent = String(formData.get("intent") || "");
-  if (!contactId || !["valid", "invalid", "primary"].includes(intent)) return;
+  if (
+    !contactId ||
+    !contactIntents.includes(intent as (typeof contactIntents)[number])
+  ) {
+    return;
+  }
 
-  const contact = await prisma.companyContact.findUnique({
-    where: { id: contactId },
-    select: { id: true, companyId: true, type: true },
-  });
-  if (!contact) return;
-
-  await prisma.$transaction(async (tx) => {
-    if (intent === "primary") {
-      await tx.companyContact.updateMany({
-        where: { companyId: contact.companyId, type: contact.type },
-        data: { isPrimary: false },
-      });
-      await tx.companyContact.update({
-        where: { id: contact.id },
-        data: {
-          isPrimary: true,
-          validity: "VALID",
-          validatedAt: new Date(),
-        },
-      });
-      return;
-    }
-
-    await tx.companyContact.update({
-      where: { id: contact.id },
-      data: {
-        validity: intent === "valid" ? "VALID" : "INVALID",
-        validatedAt: new Date(),
-        isPrimary: intent === "invalid" ? false : undefined,
-      },
+  try {
+    const result = await CompanyContactService.applyIntent({
+      contactId,
+      userId: session.user.id,
+      intent: intent as (typeof contactIntents)[number],
+      reason: String(formData.get("reason") || "").trim() || undefined,
     });
-  });
+    revalidateCompanyContactPaths(result.contact.companyId);
+  } catch {
+    return;
+  }
+}
 
-  revalidatePath(`/empresas/${contact.companyId}`);
-  revalidatePath("/pesquisa");
-  revalidatePath("/");
-  revalidatePath("/relatorios");
+export async function editCompanyContact(
+  _previousState: ContactActionState,
+  formData: FormData
+): Promise<ContactActionState> {
+  const session = await requireSession();
+  const parsed = editCompanyContactSchema.safeParse({
+    contactId: formData.get("contactId"),
+    value: formData.get("value"),
+    isWhatsapp: formData.get("isWhatsapp") === "on",
+    responsibleName: formData.get("responsibleName") || undefined,
+    role: formData.get("role") || undefined,
+    notes: formData.get("notes") || undefined,
+  });
+  if (!parsed.success) return { error: "Revise os dados do contato." };
+
+  try {
+    const updated = await CompanyContactService.update(parsed.data.contactId, {
+      value: parsed.data.value,
+      isWhatsapp: parsed.data.isWhatsapp,
+      responsibleName: parsed.data.responsibleName,
+      role: parsed.data.role,
+      notes: parsed.data.notes,
+      userId: session.user.id,
+    });
+    revalidateCompanyContactPaths(updated.companyId);
+    return { success: true };
+  } catch (error) {
+    if (
+      (error instanceof Error && error.message === "DUPLICATE_CONTACT") ||
+      (error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002")
+    ) {
+      return { error: "Este contato já está cadastrado para a empresa." };
+    }
+    if (error instanceof Error && error.message === "INVALID_CONTACT_VALUE") {
+      return { error: "Informe um contato válido." };
+    }
+    return { error: "Não foi possível atualizar o contato." };
+  }
 }

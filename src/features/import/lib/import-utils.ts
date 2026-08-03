@@ -1,3 +1,7 @@
+import {
+  canonicalPhone,
+  normalizeBrazilianPhone,
+} from "@/lib/phone-normalizer";
 import type { ImportCompanyData } from "../types/import";
 
 export type CompanyDataFields = Omit<ImportCompanyData, "cnpj">;
@@ -68,7 +72,7 @@ export function normalizeState(value?: unknown) {
 }
 
 export function normalizePhone(value?: unknown) {
-  return normalizeText(value);
+  return normalizeBrazilianPhone(value).original;
 }
 
 export function normalizeWebsite(value?: unknown) {
@@ -168,8 +172,11 @@ function comparableValue(field: keyof CompanyDataFields, value: string) {
   }
 
   if (field === "phone") {
-    const digits = normalized.replace(/\D/g, "");
-    return digits || normalized.toLowerCase();
+    return (
+      canonicalPhone(normalized) ||
+      normalized.replace(/\D/g, "") ||
+      normalized.toLowerCase()
+    );
   }
 
   if (field === "website") {
