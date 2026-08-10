@@ -460,6 +460,7 @@ export class OperationService {
               },
             });
 
+        let shouldQualifyForContactUpdate = false;
         const invalidReason =
           input.result === "NUMERO_ERRADO"
             ? "WRONG_NUMBER"
@@ -513,6 +514,9 @@ export class OperationService {
             },
           });
           if (usablePhones === 0) {
+            shouldQualifyForContactUpdate =
+              membership.qualification === null ||
+              membership.qualification === "EM_OPERACAO";
             await tx.baseCompanyChange.create({
               data: {
                 baseId: input.baseId,
@@ -539,9 +543,30 @@ export class OperationService {
             status: COMMERCIAL_STAGE_LABELS[input.nextStage],
             assignedUserId: input.userId,
             lastInteractionAt: interaction.createdAt,
+            ...(shouldQualifyForContactUpdate
+              ? {
+                  qualification: "ATUALIZAR_CONTATO" as const,
+                  qualificationReason:
+                    "Nenhum telefone utilizável permanece cadastrado.",
+                }
+              : {}),
           },
         });
         if (updated.count !== 1) throw new Error("CONCURRENT_UPDATE");
+
+        if (shouldQualifyForContactUpdate) {
+          await tx.baseCompanyChange.create({
+            data: {
+              baseId: input.baseId,
+              companyId: input.companyId,
+              userId: input.userId,
+              type: "QUALIFICATION_CHANGED",
+              reason: "Nenhum telefone utilizável permanece cadastrado.",
+              previousState: { qualification: membership.qualification },
+              nextState: { qualification: "ATUALIZAR_CONTATO" },
+            },
+          });
+        }
 
         if (membership.stage !== input.nextStage) {
           await tx.baseCompanyChange.create({

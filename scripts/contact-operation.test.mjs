@@ -85,6 +85,19 @@ test("invalidação da chamada altera somente o contato selecionado", () => {
   assert.doesNotMatch(service, /SEM_RESPOSTA[\s\S]{0,120}validity:\s*"INVALID"/);
 });
 
+test("último telefone inválido classifica o vínculo para atualização de contato", () => {
+  const service = fs.readFileSync(
+    "src/features/operation/services/operation-service.ts",
+    "utf8"
+  );
+  assert.match(service, /usablePhones === 0/);
+  assert.match(service, /shouldQualifyForContactUpdate/);
+  assert.match(service, /qualification:\s*"ATUALIZAR_CONTATO"/);
+  assert.match(service, /type:\s*"QUALIFICATION_CHANGED"/);
+  assert.match(service, /membership\.qualification === null/);
+  assert.match(service, /membership\.qualification === "EM_OPERACAO"/);
+});
+
 test("Empresas abre diretamente a empresa e preserva retorno", () => {
   const page = fs.readFileSync("src/app/(dashboard)/empresas/page.tsx", "utf8");
   const operationPage = fs.readFileSync(
