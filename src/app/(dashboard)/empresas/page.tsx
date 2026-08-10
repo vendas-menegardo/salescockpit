@@ -113,7 +113,7 @@ export default async function EmpresasPage({ searchParams }: { searchParams: Pro
         stageOptions={Object.entries(COMMERCIAL_STAGE_LABELS).map(([value, label]) => ({ value, label }))}
       />
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="workspace-surface overflow-hidden rounded-lg">
         {result.companies.length === 0 ? (
           <div className="grid place-items-center gap-2 px-6 py-14 text-center">
             <Building2 className="size-8 text-zinc-300" />
@@ -122,8 +122,8 @@ export default async function EmpresasPage({ searchParams }: { searchParams: Pro
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-[1080px] w-full text-sm">
-              <thead className="border-b border-zinc-200 bg-zinc-50/80 text-zinc-600">
+            <table className="data-table min-w-[1080px] w-full text-sm">
+              <thead className="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50 text-xs uppercase text-zinc-500">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium">Empresa</th>
                   <th className="px-4 py-3 text-left font-medium">Localização</th>
@@ -146,7 +146,7 @@ export default async function EmpresasPage({ searchParams }: { searchParams: Pro
                   const responsible = company.contactName || company.contacts.find((item) => item.responsibleName)?.responsibleName;
                   const rowHref = companyListUrl({ ...values, page: String(result.page) }, { companyId: company.id });
                   return (
-                    <tr key={company.id} className={values.companyId === company.id ? "bg-blue-50/70" : "transition-colors hover:bg-zinc-50 motion-reduce:transition-none"}>
+                    <tr key={company.id} className={values.companyId === company.id ? "bg-blue-50/70" : "transition-colors motion-reduce:transition-none"}>
                       <td className="max-w-80 px-4 py-3">
                         <Link href={rowHref} scroll={false} className="font-semibold text-zinc-900 outline-none hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500">{displayName}</Link>
                         {secondaryName && <p className="truncate text-xs text-zinc-500">{secondaryName}</p>}

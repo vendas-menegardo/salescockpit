@@ -270,11 +270,11 @@ export function OperationWorkspace({
   }
 
   return (
-    <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_21rem]">
-      <section className="flex min-h-0 flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4">
+    <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <section className="workspace-surface flex min-h-0 flex-col gap-3 rounded-lg border-t-2 border-t-blue-600 p-4">
         <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold">
+            <h2 className="truncate text-xl font-bold text-zinc-950">
               {getCompanyDisplayName(current.company)}
             </h2>
             {getCompanySecondaryName(current.company) && (
@@ -310,7 +310,7 @@ export function OperationWorkspace({
           <Badge>{COMMERCIAL_STAGE_LABELS[current.stage]}</Badge>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-lg bg-zinc-50 p-2.5 ring-1 ring-zinc-200/70">
           {availablePhones.length > 0 ? (
             <select
               aria-label="Telefone da ligação"
@@ -402,7 +402,7 @@ export function OperationWorkspace({
           </p>
         )}
 
-        <details className="shrink-0 rounded-md border border-zinc-200 px-3 py-2">
+        <details className="shrink-0 rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 py-2">
           <summary className="cursor-pointer text-sm font-medium">
             E-mail e WhatsApp
           </summary>
@@ -568,7 +568,7 @@ export function OperationWorkspace({
 
         <form
           action={updateCompanyQualification}
-          className="grid shrink-0 gap-2 rounded-md border border-zinc-200 p-2 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]"
+          className="grid shrink-0 gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-2.5 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]"
         >
           <input type="hidden" name="baseId" value={baseId} />
           <input type="hidden" name="companyId" value={current.companyId} />
@@ -606,7 +606,7 @@ export function OperationWorkspace({
         <form
           id="operation-interaction-form"
           action={action}
-          className="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto pr-1"
+          className="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto rounded-lg bg-white pr-1"
         >
           <input type="hidden" name="baseId" value={baseId} />
           <input type="hidden" name="companyId" value={current.companyId} />
@@ -692,7 +692,7 @@ export function OperationWorkspace({
             </p>
           )}
         </form>
-        <div className="flex shrink-0 flex-wrap justify-between gap-2 border-t border-zinc-100 pt-3">
+        <div className="sticky bottom-0 -mx-1 flex shrink-0 flex-wrap justify-between gap-2 border-t border-zinc-200 bg-white/95 px-1 pt-3 backdrop-blur">
           <div className="flex gap-2">
             <CursorButton
               label="Anterior"
@@ -725,9 +725,9 @@ export function OperationWorkspace({
         </div>
       </section>
 
-      <aside className="grid min-h-0 gap-3 rounded-lg border border-zinc-200 bg-white p-4 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+      <aside className="workspace-surface grid min-h-0 gap-3 rounded-lg p-4 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
         <section>
-          <h2 className="text-sm font-semibold">Roteiro comercial</h2>
+          <h2 className="text-xs font-bold uppercase text-zinc-500">Roteiro comercial</h2>
           <p className="mt-1.5 whitespace-pre-wrap text-sm text-zinc-600 lg:max-h-24 lg:overflow-y-auto">
             {operationScript ||
               "Nenhum roteiro foi configurado para esta base. O administrador pode adicioná-lo ao editar a base."}
@@ -735,7 +735,7 @@ export function OperationWorkspace({
         </section>
 
         <section className="min-h-0 border-t border-zinc-100 pt-3">
-          <h2 className="font-semibold">Histórico recente</h2>
+          <h2 className="text-sm font-bold text-zinc-900">Histórico recente</h2>
           <div className="mt-2 space-y-3 lg:h-[calc(100%-2rem)] lg:overflow-y-auto lg:pr-1">
             {current.company.interactions.length === 0 ? (
               <p className="text-sm text-zinc-500">

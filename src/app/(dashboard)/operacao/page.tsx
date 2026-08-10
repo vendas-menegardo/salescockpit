@@ -35,13 +35,13 @@ export default async function OperacaoPage({
 
   return (
     <div className="flex min-h-0 flex-col gap-3 lg:h-full lg:overflow-hidden">
-      <div className="grid shrink-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,36rem)] lg:items-end">
+      <div className="grid shrink-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,38rem)] lg:items-end">
         <PageHeader
           title="Operação"
           description="Trabalhe a fila comercial da base selecionada."
         />
 
-        <form className="flex min-w-0 items-end gap-2">
+        <form className="workspace-surface flex min-w-0 items-end gap-2 rounded-lg p-2.5">
           <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
             <span className="shrink-0 font-medium text-zinc-600">Base</span>
             <select
@@ -67,7 +67,7 @@ export default async function OperacaoPage({
         </form>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3 border-b border-zinc-200 pb-2">
         <nav
           className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-1"
           aria-label="Visões da fila"

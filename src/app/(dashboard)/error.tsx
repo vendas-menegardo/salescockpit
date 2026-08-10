@@ -13,7 +13,7 @@ export default function DashboardError({
   return (
     <section
       aria-labelledby="dashboard-error-title"
-      className="border border-red-200 bg-white p-6"
+      className="workspace-surface rounded-lg border-red-200 p-6"
     >
       <h1 className="text-lg font-semibold" id="dashboard-error-title">
         Não foi possível carregar esta página

@@ -8,7 +8,7 @@ export function EmptyState({
   description,
 }: EmptyStateProps) {
   return (
-    <div className="flex min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center">
+    <div className="flex min-h-[260px] flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center shadow-[0_1px_2px_rgba(16,24,40,0.03)]">
       <h3 className="text-lg font-semibold text-zinc-900">
         {title}
       </h3>
