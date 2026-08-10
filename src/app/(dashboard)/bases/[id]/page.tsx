@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BaseService } from "@/features/bases/services/base-service";
 import { formatCnpj } from "@/features/import/lib/import-utils";
+import { getCompanyDisplayName, getCompanySecondaryName } from "@/features/companies/lib/company-display-name";
 import { isAdminRole } from "@/features/auth/lib/access-control";
 import { requireSession } from "@/lib/auth-session";
 
@@ -105,7 +106,10 @@ export default async function BaseDetailsPage({
                       {formatCnpj(company.cnpj)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium">{company.corporateName}</div>
+                      <div className="font-medium">{getCompanyDisplayName(company)}</div>
+                      {getCompanySecondaryName(company) && (
+                        <div className="text-xs text-zinc-500">{getCompanySecondaryName(company)}</div>
+                      )}
                       {company.tradeName && (
                         <div className="text-xs text-zinc-500">
                           {company.tradeName}

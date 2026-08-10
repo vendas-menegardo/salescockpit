@@ -1,16 +1,42 @@
-import { Prisma } from "@prisma/client";
+import {
+  CommercialStage,
+  CompanyQualification,
+  ContactType,
+  Prisma,
+} from "@prisma/client";
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { normalizeCnpj, normalizeText } from "@/features/import/lib/import-utils";
 
-type FindCompaniesInput = {
+export type CompanyQuickView =
+  | "all"
+  | "contact-update"
+  | "missing-phone"
+  | "missing-email"
+  | "missing-responsible"
+  | "ready"
+  | "pending-returns";
+
+export type FindCompaniesInput = {
   query?: string;
   baseId?: string;
   city?: string;
   state?: string;
   segment?: string;
   completeness?: "all" | "incomplete" | "missing-phone" | "missing-email" | "missing-site";
+  qualification?: CompanyQualification;
+  stage?: CommercialStage;
+  phoneStatus?: "has" | "missing" | "invalid";
+  whatsapp?: "has";
+  emailStatus?: "missing";
+  responsible?: "has" | "missing";
+  operationStatus?: "not-worked" | "worked" | "pending-return";
+  lastInteractionFrom?: string;
+  lastInteractionTo?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
+  quickView?: CompanyQuickView;
   page?: number;
   pageSize?: number;
 };
@@ -23,11 +49,24 @@ export class CompanyService {
     state,
     segment,
     completeness = "all",
+    qualification,
+    stage,
+    phoneStatus,
+    whatsapp,
+    emailStatus,
+    responsible,
+    operationStatus,
+    lastInteractionFrom,
+    lastInteractionTo,
+    updatedFrom,
+    updatedTo,
+    quickView,
   }: FindCompaniesInput = {}) {
     const normalizedQuery = normalizeText(query);
     const cnpjQuery = normalizeCnpj(query);
     const where: Prisma.CompanyWhereInput = {};
 
+    const and: Prisma.CompanyWhereInput[] = [];
     if (normalizedQuery) {
       where.OR = [
         {
@@ -42,6 +81,25 @@ export class CompanyService {
             mode: "insensitive",
           },
         },
+        { phone: { contains: normalizedQuery, mode: "insensitive" } },
+        { email: { contains: normalizedQuery, mode: "insensitive" } },
+        { contactName: { contains: normalizedQuery, mode: "insensitive" } },
+        {
+          contacts: {
+            some: {
+              archivedAt: null,
+              OR: [
+                { value: { contains: normalizedQuery, mode: "insensitive" } },
+                {
+                  responsibleName: {
+                    contains: normalizedQuery,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          },
+        },
         ...(cnpjQuery
           ? [
               {
@@ -54,11 +112,30 @@ export class CompanyService {
       ];
     }
 
-    if (baseId) {
+    function dateRange(from?: string, to?: string) {
+      const range: Prisma.DateTimeFilter = {};
+      if (from) range.gte = new Date(`${from}T00:00:00-03:00`);
+      if (to) range.lte = new Date(`${to}T23:59:59.999-03:00`);
+      return Object.keys(range).length ? range : undefined;
+    }
+
+    const membershipFilter: Prisma.BaseCompanyWhereInput = {};
+    if (baseId) membershipFilter.baseId = baseId;
+    const effectiveQualification =
+      quickView === "contact-update"
+        ? CompanyQualification.ATUALIZAR_CONTATO
+        : quickView === "ready"
+          ? CompanyQualification.EM_OPERACAO
+          : qualification;
+    if (effectiveQualification) membershipFilter.qualification = effectiveQualification;
+    if (stage) membershipFilter.stage = stage;
+    if (operationStatus === "not-worked") membershipFilter.lastInteractionAt = null;
+    if (operationStatus === "worked") membershipFilter.lastInteractionAt = { not: null };
+    const interactionRange = dateRange(lastInteractionFrom, lastInteractionTo);
+    if (interactionRange) membershipFilter.lastInteractionAt = interactionRange;
+    if (Object.keys(membershipFilter).length > 0) {
       where.bases = {
-        some: {
-          baseId,
-        },
+        some: membershipFilter,
       };
     }
     if (city) where.city = { contains: city.trim(), mode: "insensitive" };
@@ -80,11 +157,79 @@ export class CompanyService {
           { state: null },
         ],
       };
-      where.AND = [
-        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
-        completenessFilter,
-      ];
+      and.push(completenessFilter);
     }
+
+    const phoneTypes = [ContactType.PHONE, ContactType.WHATSAPP];
+    const usablePhone: Prisma.CompanyWhereInput = {
+      OR: [
+        { phone: { not: null } },
+        {
+          contacts: {
+            some: {
+              type: { in: phoneTypes },
+              archivedAt: null,
+              validity: { not: "INVALID" },
+            },
+          },
+        },
+      ],
+    };
+    const effectivePhoneStatus =
+      quickView === "missing-phone" ? "missing" : phoneStatus;
+    if (effectivePhoneStatus === "has" || quickView === "ready") and.push(usablePhone);
+    if (effectivePhoneStatus === "missing") and.push({ NOT: usablePhone });
+    if (effectivePhoneStatus === "invalid") {
+      and.push({
+        contacts: {
+          some: {
+            type: { in: phoneTypes },
+            validity: "INVALID",
+          },
+        },
+      });
+    }
+    if (whatsapp === "has") {
+      and.push({
+        contacts: {
+          some: { archivedAt: null, isWhatsapp: true, validity: { not: "INVALID" } },
+        },
+      });
+    }
+
+    const usableEmail: Prisma.CompanyWhereInput = {
+      OR: [
+        { email: { not: null } },
+        {
+          contacts: {
+            some: { type: ContactType.EMAIL, archivedAt: null, validity: { not: "INVALID" } },
+          },
+        },
+      ],
+    };
+    if (emailStatus === "missing" || quickView === "missing-email") {
+      and.push({ NOT: usableEmail });
+    }
+    const hasResponsible: Prisma.CompanyWhereInput = {
+      OR: [
+        { contactName: { not: null } },
+        { contacts: { some: { archivedAt: null, responsibleName: { not: null } } } },
+      ],
+    };
+    if (responsible === "has") and.push(hasResponsible);
+    if (responsible === "missing" || quickView === "missing-responsible") {
+      and.push({ NOT: hasResponsible });
+    }
+    if (quickView === "pending-returns") {
+      and.push({ followUps: { some: { status: "PENDING" } } });
+    }
+    if (operationStatus === "pending-return") {
+      and.push({ followUps: { some: { status: "PENDING" } } });
+    }
+
+    const updateRange = dateRange(updatedFrom, updatedTo);
+    if (updateRange) where.updatedAt = updateRange;
+    if (and.length) where.AND = and;
 
     return where;
   }
@@ -96,6 +241,18 @@ export class CompanyService {
     state,
     segment,
     completeness,
+    qualification,
+    stage,
+    phoneStatus,
+    whatsapp,
+    emailStatus,
+    responsible,
+    operationStatus,
+    lastInteractionFrom,
+    lastInteractionTo,
+    updatedFrom,
+    updatedTo,
+    quickView,
     page = 1,
     pageSize = 25,
   }: FindCompaniesInput = {}) {
@@ -108,6 +265,18 @@ export class CompanyService {
       state,
       segment,
       completeness,
+      qualification,
+      stage,
+      phoneStatus,
+      whatsapp,
+      emailStatus,
+      responsible,
+      operationStatus,
+      lastInteractionFrom,
+      lastInteractionTo,
+      updatedFrom,
+      updatedTo,
+      quickView,
     });
     const total = await prisma.company.count({ where });
     const totalPages = Math.max(1, Math.ceil(total / safePageSize));
@@ -132,12 +301,12 @@ export class CompanyService {
           },
         },
         contacts: {
-          where: { validity: { not: "INVALID" } },
+          where: { archivedAt: null },
           orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
           take: 3,
         },
       },
-      orderBy: [{ corporateName: "asc" }, { id: "asc" }],
+      orderBy: [{ tradeName: { sort: "asc", nulls: "last" } }, { corporateName: "asc" }, { id: "asc" }],
       skip: (actualPage - 1) * safePageSize,
       take: safePageSize,
     });
@@ -149,6 +318,24 @@ export class CompanyService {
       pageSize: safePageSize,
       totalPages,
     };
+  }
+
+  static async countQuickViews(baseId?: string) {
+    const views: CompanyQuickView[] = [
+      "all",
+      "contact-update",
+      "missing-phone",
+      "missing-email",
+      "missing-responsible",
+      "ready",
+      "pending-returns",
+    ];
+    const counts = await Promise.all(
+      views.map((quickView) =>
+        prisma.company.count({ where: this.buildWhere({ baseId, quickView }) })
+      )
+    );
+    return Object.fromEntries(views.map((view, index) => [view, counts[index]])) as Record<CompanyQuickView, number>;
   }
 
   static async findAll(input: FindCompaniesInput = {}) {

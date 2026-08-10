@@ -58,10 +58,10 @@ export function OperationCompanyPanel({
           <input type="hidden" name="companyId" value={company.id} />
           <label className="grid gap-1 text-sm">
             Razão social
-            <Input value={company.corporateName} disabled />
+            <Input name="corporateName" defaultValue={company.corporateName} required maxLength={255} />
           </label>
           <label className="grid gap-1 text-sm">
-            Nome público
+            Nome fantasia
             <Input name="tradeName" defaultValue={company.tradeName || ""} maxLength={255} />
           </label>
           <label className="grid gap-1 text-sm">

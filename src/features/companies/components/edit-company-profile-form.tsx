@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Loader2, Save } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,12 +42,31 @@ export function EditCompanyProfileForm({
     updateCompanyProfile,
     initialState
   );
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (state.success) {
+      queueMicrotask(() => setDirty(false));
+      toast.success("Cadastro atualizado.");
+    } else if (state.error) {
+      toast.error(state.error);
+    }
+  }, [state]);
+
+  useEffect(() => {
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      if (!dirty) return;
+      event.preventDefault();
+    }
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [dirty]);
   return (
     <details className="border-t border-zinc-200 pt-4">
       <summary className="cursor-pointer text-sm font-medium text-blue-700">
         Editar cadastro
       </summary>
-      <form action={action} className="mt-4 grid gap-3 md:grid-cols-2">
+      <form action={action} onChange={() => setDirty(true)} className="mt-4 grid gap-3 md:grid-cols-2">
         <input type="hidden" name="companyId" value={company.id} />
         <Field label="Razão social">
           <Input
@@ -109,6 +129,9 @@ export function EditCompanyProfileForm({
               Cadastro atualizado.
             </p>
           )}
+          <Button type="reset" variant="ghost" disabled={pending || !dirty} onClick={() => setDirty(false)}>
+            Cancelar alterações
+          </Button>
           <Button type="submit" disabled={pending}>
             {pending ? (
               <Loader2 className="animate-spin" data-icon="inline-start" />
