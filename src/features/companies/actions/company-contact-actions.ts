@@ -17,8 +17,8 @@ export type ContactActionState = {
 
 function revalidateCompanyContactPaths(companyId: string) {
   revalidatePath(`/empresas/${companyId}`);
+  revalidatePath("/empresas");
   revalidatePath("/operacao");
-  revalidatePath("/pesquisa");
   revalidatePath("/");
   revalidatePath("/relatorios");
 }

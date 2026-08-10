@@ -6,6 +6,7 @@ import { ExternalLink, Sparkles } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getCompanyDisplayName, getCompanySecondaryName } from "@/features/companies/lib/company-display-name";
 
 export type SearchCompanyRow = {
   id: string;
@@ -85,15 +86,15 @@ export function SearchResults({
                     type="checkbox"
                     checked={selected.includes(company.id)}
                     onChange={() => toggle(company.id)}
-                    aria-label={`Selecionar ${company.corporateName}`}
+                    aria-label={`Selecionar ${getCompanyDisplayName(company)}`}
                     className="size-4"
                   />
                 </td>
                 <td className="px-3 py-3">
-                  <strong>{company.corporateName}</strong>
-                  {company.tradeName && (
+                  <strong>{getCompanyDisplayName(company)}</strong>
+                  {getCompanySecondaryName(company) && (
                     <div className="text-xs text-zinc-500">
-                      {company.tradeName}
+                      {getCompanySecondaryName(company)}
                     </div>
                   )}
                 </td>

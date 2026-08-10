@@ -25,6 +25,7 @@ export const companyProfileSchema = z.object({
 
 export const quickCompanyProfileSchema = z.object({
   companyId: z.string().min(1),
+  corporateName: z.string().trim().min(2).max(255),
   tradeName: optionalText(255),
   contactName: optionalText(255),
   notes: optionalText(4000),

@@ -9,6 +9,7 @@ import { EditCompanyProfileForm } from "@/features/companies/components/edit-com
 import { InteractionCorrectionForm } from "@/features/companies/components/interaction-correction-form";
 import { OperationContactPanel } from "@/features/operation/components/operation-contact-panel";
 import { CompanyService } from "@/features/companies/services/company-service";
+import { getCompanyDisplayName, getCompanySecondaryName } from "@/features/companies/lib/company-display-name";
 import { calculateCompanyCompleteness } from "@/features/companies/lib/company-completeness";
 import { formatCnpj } from "@/features/import/lib/import-utils";
 import {
@@ -56,7 +57,10 @@ export default async function CompanyDetailsPage({
           Empresas
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold">{company.corporateName}</h1>
+          <h1 className="text-2xl font-bold">{getCompanyDisplayName(company)}</h1>
+          {getCompanySecondaryName(company) && (
+            <p className="text-sm text-zinc-500">{getCompanySecondaryName(company)}</p>
+          )}
           {activeOperationMembership && (
             <Button
               nativeButton={false}

@@ -8,7 +8,6 @@ import {
   Database,
   LayoutDashboard,
   PhoneCall,
-  Search,
   Settings,
   Upload,
   Users,
@@ -36,11 +35,6 @@ const menu = [
     name: "Empresas",
     href: "/empresas",
     icon: Building2,
-  },
-  {
-    name: "Pesquisa",
-    href: "/pesquisa",
-    icon: Search,
   },
   {
     name: "Importação",

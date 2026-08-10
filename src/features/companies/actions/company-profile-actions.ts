@@ -73,7 +73,7 @@ export async function updateCompanyProfile(
   }
 
   revalidatePath(`/empresas/${companyId}`);
-  revalidatePath("/pesquisa");
+  revalidatePath("/empresas");
   revalidatePath("/");
   revalidatePath("/relatorios");
   return { success: true };
