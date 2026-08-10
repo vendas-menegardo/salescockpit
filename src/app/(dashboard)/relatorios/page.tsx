@@ -163,8 +163,8 @@ export default async function RelatoriosPage({
 
       {tab === "operacao" && (
       <DashboardSection title={`Histórico (${interactions.total.toLocaleString("pt-BR")})`}>
-        <div className="overflow-x-auto border-y border-zinc-200">
-          <table className="min-w-full text-sm">
+        <div className="workspace-surface overflow-x-auto rounded-lg">
+          <table className="data-table min-w-full text-sm">
             <thead className="bg-zinc-50">
               <tr>
                 <Th>Data</Th>
@@ -218,8 +218,8 @@ export default async function RelatoriosPage({
 
       {tab === "empresas" && (
       <DashboardSection title={`Empresas (${companies.total.toLocaleString("pt-BR")})`}>
-        <div className="overflow-x-auto border-y border-zinc-200">
-          <table className="min-w-full text-sm">
+        <div className="workspace-surface overflow-x-auto rounded-lg">
+          <table className="data-table min-w-full text-sm">
             <thead className="bg-zinc-50">
               <tr>
                 <Th>CNPJ</Th>
@@ -346,7 +346,7 @@ function ReportFilters({
   admin: boolean;
 }) {
   return (
-    <form className="grid gap-3 border-y border-zinc-200 py-4 md:grid-cols-3 xl:grid-cols-5">
+    <form className="workspace-surface grid gap-3 rounded-lg p-4 md:grid-cols-3 xl:grid-cols-5">
       <Filter label="Data inicial">
         <input type="date" name="from" defaultValue={filters.from} className={fieldClass} />
       </Filter>
@@ -449,9 +449,9 @@ function Filter({ label, children }: { label: string; children: React.ReactNode 
 
 function ReportMetric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-      <span className="text-sm text-zinc-500">{label}</span>
-      <strong className="mt-2 block text-xl">
+    <div className="workspace-surface rounded-lg p-4">
+      <span className="text-sm font-medium text-zinc-500">{label}</span>
+      <strong className="mt-1.5 block text-2xl font-bold tracking-tight text-zinc-950">
         {typeof value === "number" ? value.toLocaleString("pt-BR") : value}
       </strong>
     </div>

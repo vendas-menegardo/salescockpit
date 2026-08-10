@@ -11,16 +11,14 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-zinc-100 px-4 py-10">
+    <main className="grid min-h-dvh place-items-center bg-[#f5f7fb] px-4 py-10">
       <section
         aria-labelledby="login-title"
-        className="w-full max-w-md border border-zinc-200 bg-white p-6 shadow-sm sm:p-8"
+        className="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-6 shadow-[0_18px_48px_rgba(16,24,40,0.10)] sm:p-8"
       >
         <div className="mb-8">
-          <p className="mb-3 text-sm font-semibold text-blue-600">
-            SalesCockpit
-          </p>
-          <h1 className="text-2xl font-bold" id="login-title">
+          <div className="mb-5 flex items-center gap-2.5"><span className="grid size-9 place-items-center rounded-lg bg-blue-600 text-sm font-bold text-white">SC</span><strong className="text-lg">SalesCockpit</strong></div>
+          <h1 className="text-2xl font-bold text-zinc-950" id="login-title">
             Acesse sua conta
           </h1>
           <p className="mt-2 text-sm text-zinc-600">

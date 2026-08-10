@@ -63,7 +63,7 @@ export default async function DashboardPage({
           description="Acompanhamento da operação com dados reais do histórico comercial."
         />
 
-        <form className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.1fr_1.2fr_auto]">
+        <form className="workspace-surface grid gap-2 rounded-lg p-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.1fr_1.2fr_auto]">
           <FilterField label="Data inicial">
             <input
               type="date"
@@ -152,8 +152,8 @@ export default async function DashboardPage({
       </section>
 
       <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(19rem,0.85fr)]">
-        <section className="min-h-0 rounded-lg border border-zinc-200 bg-white p-3">
-          <h2 className="text-base font-semibold tracking-tight">
+        <section className="workspace-surface min-h-0 rounded-lg border-t-2 border-t-blue-600 p-4">
+          <h2 className="text-base font-bold tracking-tight text-zinc-900">
             Funil comercial
           </h2>
           <div className="mt-2 space-y-1">
@@ -176,7 +176,7 @@ export default async function DashboardPage({
         </section>
 
         <div className="grid min-h-0 content-start gap-3 xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden">
-          <section className="rounded-lg border border-zinc-200 bg-white p-3">
+          <section className="workspace-surface rounded-lg p-3">
             <h2 className="text-base font-semibold tracking-tight">
               Pendências
             </h2>
@@ -191,7 +191,7 @@ export default async function DashboardPage({
             </dl>
           </section>
 
-          <section className="min-h-0 rounded-lg border border-zinc-200 bg-white p-3 xl:overflow-y-auto">
+          <section className="workspace-surface min-h-0 rounded-lg p-3 xl:overflow-y-auto">
             <h2 className="text-base font-semibold tracking-tight">
               Qualidade dos dados
             </h2>
@@ -243,12 +243,12 @@ function Metric({
   value: number;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-3">
+    <div className="workspace-surface rounded-lg p-3">
       <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
-        <span>{label}</span>
-        {Icon && <Icon size={17} aria-hidden="true" />}
+        <span className="font-medium">{label}</span>
+        {Icon && <span className="grid size-8 place-items-center rounded-lg bg-blue-50 text-blue-600"><Icon size={16} aria-hidden="true" /></span>}
       </div>
-      <strong className="mt-1 block text-xl">
+      <strong className="mt-1 block text-2xl font-bold tracking-tight text-zinc-950">
         {value.toLocaleString("pt-BR")}
       </strong>
     </div>

@@ -44,7 +44,7 @@ export default async function UsuariosPage({ searchParams }: UsersPageProps) {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Usuários"
         description="Crie contas, defina perfis e controle o acesso ao SalesCockpit."
@@ -52,7 +52,7 @@ export default async function UsuariosPage({ searchParams }: UsersPageProps) {
 
       <section
         aria-labelledby="new-user-title"
-        className="space-y-4 border-y border-zinc-200 bg-white px-4 py-5 sm:px-6"
+        className="workspace-surface space-y-4 rounded-lg p-5 sm:p-6"
       >
         <div>
           <h2 className="font-semibold" id="new-user-title">
@@ -75,7 +75,7 @@ export default async function UsuariosPage({ searchParams }: UsersPageProps) {
           </span>
         </div>
 
-        <div className="divide-y divide-zinc-100 overflow-hidden border border-zinc-200 bg-white">
+        <div className="workspace-surface divide-y divide-zinc-100 overflow-hidden rounded-lg">
           {users.length === 0 ? (
             <p className="px-6 py-12 text-center text-sm text-zinc-500">
               Nenhum usuário cadastrado.

@@ -20,41 +20,49 @@ const menu = [
     name: "Dashboard",
     href: "/",
     icon: LayoutDashboard,
+    group: "Trabalho",
   },
   {
     name: "Operação",
     href: "/operacao",
     icon: PhoneCall,
+    group: "Trabalho",
   },
   {
     name: "Bases",
     href: "/bases",
     icon: Database,
+    group: "Dados",
   },
   {
     name: "Empresas",
     href: "/empresas",
     icon: Building2,
+    group: "Dados",
   },
   {
     name: "Importação",
     href: "/importacao",
     icon: Upload,
+    group: "Dados",
   },
   {
     name: "Relatórios",
     href: "/relatorios",
     icon: BarChart3,
+    group: "Gestão",
   },
   {
     name: "Usuários",
     href: "/usuarios",
     icon: Users,
+    group: "Gestão",
   },
   {
     name: "Configurações",
     href: "/configuracoes",
     icon: Settings,
+    group: "Gestão",
   },
 ];
 
@@ -71,22 +79,31 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const visibleItems = menu.filter((item) => canAccessRoute(role, item.href));
+  const groups = ["Trabalho", "Dados", "Gestão"];
 
   return (
     <aside
       className={cn(
-        "sticky top-0 h-dvh w-64 shrink-0 overflow-y-auto border-r border-zinc-200 bg-white",
+        "sticky top-0 h-dvh w-64 shrink-0 overflow-y-auto border-r border-zinc-200/80 bg-[#fbfcfe]",
         className
       )}
     >
-      <div className="flex h-14 items-center border-b border-zinc-200 px-5">
-        <h1 className="text-xl font-bold">
-          Sales<span className="text-blue-600">Cockpit</span>
-        </h1>
+      <div className="flex h-16 items-center border-b border-zinc-200/80 px-5">
+        <div className="flex items-center gap-2.5">
+          <span className="grid size-8 place-items-center rounded-lg bg-blue-600 text-sm font-bold text-white shadow-sm">SC</span>
+          <div>
+            <h1 className="text-[17px] font-bold leading-none text-zinc-950">SalesCockpit</h1>
+            <p className="mt-1 text-[10px] font-semibold uppercase text-zinc-400">Operação comercial</p>
+          </div>
+        </div>
       </div>
 
-      <nav className="space-y-1 p-3 pb-6">
-        {visibleItems.map((item) => {
+      <nav className="space-y-5 p-3 pb-6" aria-label="Navegação principal">
+        {groups.map((group) => (
+          <div key={group}>
+            <p className="mb-1.5 px-3 text-[10px] font-bold uppercase text-zinc-400">{group}</p>
+            <div className="space-y-1">
+            {visibleItems.filter((item) => item.group === group).map((item) => {
           const Icon = item.icon;
           const isActive =
             pathname === item.href ||
@@ -98,17 +115,20 @@ export function AppSidebar({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset",
+                "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset",
                 isActive
-                  ? "bg-blue-600 text-white"
-                  : "bg-transparent hover:bg-zinc-100"
+                  ? "bg-blue-50 text-blue-700 shadow-[inset_3px_0_0_#155eef]"
+                  : "bg-transparent text-zinc-600 hover:bg-white hover:text-zinc-950 hover:shadow-sm"
               )}
             >
-              <Icon size={18} />
+              <Icon size={18} className={isActive ? "text-blue-600" : "text-zinc-400 transition group-hover:text-zinc-700"} />
               {item.name}
             </Link>
           );
         })}
+            </div>
+          </div>
+        ))}
       </nav>
     </aside>
   );

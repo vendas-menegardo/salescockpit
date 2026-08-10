@@ -16,6 +16,7 @@ import { isAdminRole } from "@/features/auth/lib/access-control";
 import { ActivateBaseButton } from "@/features/bases/components/activate-base-button";
 import { DeleteBaseButton } from "@/features/bases/components/delete-base-button";
 import { requireSession } from "@/lib/auth-session";
+import { PageHeader } from "@/components/common/page-header";
 
 export default async function BasesPage() {
   const session = await requireSession();
@@ -24,26 +25,19 @@ export default async function BasesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Bases</h1>
-
-          <p className="text-muted-foreground">
-            Gerencie suas bases comerciais.
-          </p>
-        </div>
-
-        {canManageBases && (
+      <PageHeader
+        title="Bases"
+        description="Organize as carteiras comerciais e acompanhe o volume disponível para operação."
+        actions={canManageBases ? (
           <Button
-            size="lg"
             nativeButton={false}
             render={<Link href="/bases/nova" />}
           >
             <Plus data-icon="inline-start" />
             Nova Base
           </Button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {bases.length === 0 ? (
         <Card>
@@ -52,46 +46,34 @@ export default async function BasesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-5">
+        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {bases.map((base) => (
             <Card key={base.id}>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-start justify-between border-b border-zinc-100 pb-4">
                 <div>
                   <CardTitle>{base.name}</CardTitle>
 
                   {base.description && (
-                    <p className="mt-2 text-sm text-muted-foreground">
+                    <p className="mt-1.5 line-clamp-2 text-sm text-zinc-500">
                       {base.description}
                     </p>
                   )}
                 </div>
 
                 {base.isActive && (
-                  <Badge>
+                  <Badge className="bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
                     Ativa
                   </Badge>
                 )}
               </CardHeader>
 
-              <CardContent className="grid gap-2 text-sm">
-                <p>
-                  <strong>Segmento:</strong> {base.segment || "-"}
-                </p>
-
-                <p>
-                  <strong>Estado:</strong> {base.state || "-"}
-                </p>
-
-                <p>
-                  <strong>Cidade:</strong> {base.city || "-"}
-                </p>
-
-                <p>
-                  <strong>Empresas:</strong> {base.companiesCount}
-                </p>
+              <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                <div><p className="text-xs text-zinc-500">Empresas</p><strong className="text-2xl text-zinc-950">{base.companiesCount.toLocaleString("pt-BR")}</strong></div>
+                <div><p className="text-xs text-zinc-500">Localidade</p><strong>{[base.city, base.state].filter(Boolean).join("/") || "Todas"}</strong></div>
+                <div className="col-span-2"><p className="text-xs text-zinc-500">Segmento</p><strong>{base.segment || "Todos os segmentos"}</strong></div>
               </CardContent>
 
-              <CardFooter className="flex gap-2">
+              <CardFooter className="flex flex-wrap gap-2 bg-zinc-50/80">
                 <Button
                   variant="outline"
                   nativeButton={false}

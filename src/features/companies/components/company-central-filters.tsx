@@ -87,7 +87,7 @@ export function CompanyCentralFilters({
 
   return (
     <section className="space-y-3" aria-label="Busca e filtros de empresas">
-      <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Visualizações rápidas">
+      <div className="flex gap-2 overflow-x-auto border-b border-zinc-200 pb-2" role="tablist" aria-label="Visualizações rápidas">
         {quickViews.map(([value, label]) => {
           const active = currentView === value;
           return (
@@ -97,7 +97,7 @@ export function CompanyCentralFilters({
               role="tab"
               aria-selected={active}
               onClick={() => navigate((params) => value === "all" ? params.delete("quickView") : params.set("quickView", value))}
-              className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 motion-reduce:transition-none ${active ? "border-blue-600 bg-blue-600 text-white" : value === "contact-update" ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100" : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"}`}
+              className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-semibold shadow-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 motion-reduce:transition-none ${active ? "border-blue-600 bg-blue-600 text-white" : value === "contact-update" ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100" : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-950"}`}
             >
               {label} <span className={active ? "text-blue-100" : "text-zinc-500"}>{counts[value]?.toLocaleString("pt-BR") ?? 0}</span>
             </button>
@@ -121,7 +121,7 @@ export function CompanyCentralFilters({
         </div>
       )}
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="workspace-surface flex flex-col gap-2 rounded-lg p-2 sm:flex-row">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">Buscar empresas</span>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={17} />
@@ -147,7 +147,7 @@ export function CompanyCentralFilters({
 
       {filtersOpen && (
         <form
-          className="grid gap-3 rounded-lg border border-zinc-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4"
+          className="workspace-surface grid gap-3 rounded-lg p-4 sm:grid-cols-2 lg:grid-cols-4"
           onChange={(event) => {
             const target = event.target as unknown as HTMLInputElement | HTMLSelectElement;
             if (!target.name) return;

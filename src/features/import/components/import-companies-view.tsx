@@ -112,9 +112,9 @@ const STATUS_META: Record<
 
 function SummaryItem({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-3">
+    <div className="workspace-surface rounded-lg p-3">
       <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 text-xl font-semibold text-zinc-900">{value}</div>
+      <div className="mt-1 text-2xl font-bold tracking-tight text-zinc-950">{value.toLocaleString("pt-BR")}</div>
     </div>
   );
 }
@@ -413,9 +413,9 @@ export function ImportCompaniesView({
     ] as const;
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         <div>
-          <h1 className="text-3xl font-bold">Importação concluída</h1>
+          <h1 className="text-2xl font-bold text-zinc-950">Importação concluída</h1>
           <p className="mt-2 text-muted-foreground">
             Resultado da importação para a base {result.base.name}.
           </p>
@@ -462,9 +462,9 @@ export function ImportCompaniesView({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-3xl font-bold">Importação de empresas</h1>
+        <h1 className="text-2xl font-bold text-zinc-950">Importação de empresas</h1>
         <p className="mt-2 text-muted-foreground">
           Selecione a base de destino e valide o CSV antes de confirmar.
         </p>
@@ -567,7 +567,7 @@ export function ImportCompaniesView({
           <UploadZone onFileSelect={handleFile} disabled={confirming} />
 
           {file && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
               <div>
                 <div className="font-medium">{file.name}</div>
                 <div className="text-sm text-zinc-500">
@@ -642,10 +642,10 @@ export function ImportCompaniesView({
             />
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+          <div className="workspace-surface overflow-hidden rounded-lg">
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="border-b border-zinc-200 bg-zinc-50">
+                <thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase text-zinc-500">
                   <tr>
                     <th className="px-3 py-3 text-left font-medium">Linha</th>
                     <th className="px-3 py-3 text-left font-medium">CNPJ</th>
