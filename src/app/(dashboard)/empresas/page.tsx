@@ -86,10 +86,13 @@ export default async function EmpresasPage({ searchParams }: { searchParams: Pro
     page: Number.isFinite(requestedPage) ? requestedPage : 1,
     pageSize,
   };
-  const [result, bases, counts, selectedCompany] = await Promise.all([
+  const [result, bases, counts, globalContactUpdateCount, selectedCompany] = await Promise.all([
     CompanyService.findPage(input),
     BaseService.findAll(),
     CompanyService.countQuickViews(values.baseId),
+    values.baseId
+      ? CompanyService.countQuickView("contact-update")
+      : Promise.resolve(null),
     values.companyId ? CompanyService.findById(values.companyId) : null,
   ]);
   const returnTo = operationReturnUrl({ ...values, page: String(result.page) });
@@ -105,6 +108,7 @@ export default async function EmpresasPage({ searchParams }: { searchParams: Pro
       <CompanyCentralFilters
         bases={bases.map((base) => ({ value: base.id, label: base.name }))}
         counts={counts}
+        globalContactUpdateCount={globalContactUpdateCount}
         qualificationOptions={Object.entries(qualificationLabels).map(([value, label]) => ({ value, label }))}
         stageOptions={Object.entries(COMMERCIAL_STAGE_LABELS).map(([value, label]) => ({ value, label }))}
       />

@@ -338,6 +338,12 @@ export class CompanyService {
     return Object.fromEntries(views.map((view, index) => [view, counts[index]])) as Record<CompanyQuickView, number>;
   }
 
+  static async countQuickView(quickView: CompanyQuickView, baseId?: string) {
+    return prisma.company.count({
+      where: this.buildWhere({ baseId, quickView }),
+    });
+  }
+
   static async findAll(input: FindCompaniesInput = {}) {
     const result = await this.findPage({ ...input, page: 1, pageSize: 100 });
     return result.companies;

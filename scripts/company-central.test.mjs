@@ -73,6 +73,17 @@ test("Central oferece filtros operacionais e visualização Atualizar contato", 
   assert.match(filters, /setTimeout[\s\S]*350/);
   assert.match(filters, /focus-visible:ring/);
   assert.match(filters, /motion-reduce/);
+  assert.match(filters, /globalContactUpdateCount/);
+  assert.match(filters, /Ver todas as bases/);
+  assert.match(filters, /params\.delete\("baseId"\)/);
+});
+
+test("contagem global de Atualizar contato não depende do filtro de base", () => {
+  const page = fs.readFileSync("src/app/(dashboard)/empresas/page.tsx", "utf8");
+  const service = fs.readFileSync("src/features/companies/services/company-service.ts", "utf8");
+  assert.match(page, /CompanyService\.countQuickView\("contact-update"\)/);
+  assert.match(service, /static async countQuickView\(quickView: CompanyQuickView, baseId\?: string\)/);
+  assert.match(service, /this\.buildWhere\(\{ baseId, quickView \}\)/);
 });
 
 test("rotas antigas redirecionam preservando parâmetros e Pesquisa sai do menu", () => {

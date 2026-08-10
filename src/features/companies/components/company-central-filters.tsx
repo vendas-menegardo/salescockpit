@@ -39,11 +39,13 @@ const filterLabels: Record<string, string> = {
 export function CompanyCentralFilters({
   bases,
   counts,
+  globalContactUpdateCount,
   qualificationOptions,
   stageOptions,
 }: {
   bases: Option[];
   counts: Record<string, number>;
+  globalContactUpdateCount: number | null;
   qualificationOptions: Option[];
   stageOptions: Option[];
 }) {
@@ -102,6 +104,22 @@ export function CompanyCentralFilters({
           );
         })}
       </div>
+
+      {currentView === "contact-update" && searchParams.has("baseId") && globalContactUpdateCount !== null && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <p>
+            Exibindo {counts["contact-update"]?.toLocaleString("pt-BR") ?? 0} nesta base. No total, há{" "}
+            <strong>{globalContactUpdateCount.toLocaleString("pt-BR")}</strong> empresas para atualizar contato.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate((params) => params.delete("baseId"))}
+            className="font-semibold text-amber-950 underline decoration-amber-500 underline-offset-4 hover:text-amber-800 focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
+          >
+            Ver todas as bases
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <label className="relative min-w-0 flex-1">
