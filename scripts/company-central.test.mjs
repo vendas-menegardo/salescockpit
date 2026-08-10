@@ -99,3 +99,24 @@ test("contatos continuam deduplicados e auditados no serviço existente", () => 
   assert.match(service, /companyContactEvent\.create/);
   assert.match(service, /canonicalContactValue/);
 });
+
+test("Operação usa a mesma regra de nome e edita os dois campos", () => {
+  const workspace = fs.readFileSync("src/features/operation/components/operation-workspace.tsx", "utf8");
+  const panel = fs.readFileSync("src/features/operation/components/operation-company-panel.tsx", "utf8");
+  assert.match(workspace, /getCompanyDisplayName\(current\.company\)/);
+  assert.match(workspace, /getCompanySecondaryName\(current\.company\)/);
+  assert.match(panel, /name="corporateName"/);
+  assert.match(panel, /name="tradeName"/);
+  assert.doesNotMatch(panel, /corporateName[^\n]+disabled/);
+});
+
+test("botões mantêm foco, loading e movimento reduzido", () => {
+  const buttons = fs.readFileSync("src/components/ui/button.tsx", "utf8");
+  const form = fs.readFileSync("src/features/companies/components/edit-company-profile-form.tsx", "utf8");
+  const css = fs.readFileSync("src/app/globals.css", "utf8");
+  assert.match(buttons, /focus-visible:ring/);
+  assert.match(buttons, /disabled:pointer-events-none/);
+  assert.match(form, /disabled=\{pending\}/);
+  assert.match(form, /toast\.success/);
+  assert.match(css, /prefers-reduced-motion/);
+});

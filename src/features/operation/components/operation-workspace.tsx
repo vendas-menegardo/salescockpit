@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { canonicalCnpj, displayCnpj } from "@/lib/cnpj";
+import { getCompanyDisplayName, getCompanySecondaryName } from "@/features/companies/lib/company-display-name";
 import { whatsappPhone } from "@/lib/phone-normalizer";
 import {
   moveOperationCursor,
@@ -274,8 +275,13 @@ export function OperationWorkspace({
         <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="truncate text-lg font-semibold">
-              {current.company.corporateName}
+              {getCompanyDisplayName(current.company)}
             </h2>
+            {getCompanySecondaryName(current.company) && (
+              <p className="truncate text-xs text-zinc-500">
+                {getCompanySecondaryName(current.company)}
+              </p>
+            )}
             <p className="mt-0.5 text-sm text-zinc-500">
               {[current.company.city, current.company.state]
                 .filter(Boolean)
