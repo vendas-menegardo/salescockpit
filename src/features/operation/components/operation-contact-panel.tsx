@@ -18,11 +18,10 @@ import {
 import { AddContactForm } from "@/features/companies/components/add-contact-form";
 import {
   editCompanyContact,
-  materializeLegacyContacts,
+  editPrimaryCompanyPhone,
   type ContactActionState,
   updateCompanyContact,
 } from "@/features/companies/actions/company-contact-actions";
-import { canonicalPhone } from "@/lib/phone-normalizer";
 import {
   CONTACT_TYPE_LABELS,
   CONTACT_VALIDITY_LABELS,
@@ -31,55 +30,17 @@ import {
 const initialState: ContactActionState = {};
 const ContactBaseContext = createContext<string | undefined>(undefined);
 
-function comparableContact(type: string, value: string) {
-  return ["PHONE", "WHATSAPP"].includes(type)
-    ? canonicalPhone(value)
-    : value.trim().toLowerCase();
-}
-
 export function OperationContactPanel({
   companyId,
   baseId,
   contacts,
-  legacyPhone,
-  legacyEmail,
 }: {
   companyId: string;
   baseId?: string;
   contacts: CompanyContact[];
-  legacyPhone?: string | null;
-  legacyEmail?: string | null;
 }) {
   const activeContacts = contacts.filter((contact) => !contact.archivedAt);
   const archivedContacts = contacts.filter((contact) => contact.archivedAt);
-  const isLegacyContact = (contact: CompanyContact) => {
-    const legacyValue = ["PHONE", "WHATSAPP"].includes(contact.type)
-      ? legacyPhone
-      : contact.type === "EMAIL"
-        ? legacyEmail
-        : null;
-    return Boolean(
-      legacyValue &&
-        comparableContact(contact.type, contact.value) ===
-          comparableContact(contact.type, legacyValue)
-    );
-  };
-  const unmanagedLegacy = [
-    legacyPhone
-      ? { type: "PHONE" as const, value: legacyPhone, label: "telefone" }
-      : null,
-    legacyEmail
-      ? { type: "EMAIL" as const, value: legacyEmail, label: "e-mail" }
-      : null,
-  ].filter(
-    (legacy): legacy is { type: "PHONE" | "EMAIL"; value: string; label: string } =>
-      Boolean(legacy) &&
-      !contacts.some(
-        (contact) =>
-          comparableContact(contact.type, contact.value) ===
-          comparableContact(legacy!.type, legacy!.value)
-      )
-  );
 
   return (
     <Sheet>
@@ -100,31 +61,12 @@ export function OperationContactPanel({
           </SheetDescription>
         </SheetHeader>
 
-        {unmanagedLegacy.length > 0 && (
-          <div className="mx-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
-            <p className="font-medium text-amber-950">
-              A ficha possui {unmanagedLegacy.map((item) => item.label).join(" e ")} ainda sem gestão individual.
-            </p>
-            <p className="mt-1 text-xs text-amber-800">
-              Organize para editar, identificar o responsável, validar ou arquivar esses contatos.
-            </p>
-            <form action={materializeLegacyContacts} className="mt-2">
-              <input type="hidden" name="companyId" value={companyId} />
-              <PendingSubmitButton label="Organizar contatos da ficha" />
-            </form>
-          </div>
-        )}
-
         <div className="grid gap-3 px-4">
           {activeContacts.length === 0 ? (
             <p className="text-sm text-zinc-500">Nenhum contato cadastrado.</p>
           ) : (
             activeContacts.map((contact) => (
-              <ContactItem
-                key={contact.id}
-                contact={contact}
-                isLegacyContact={isLegacyContact(contact)}
-              />
+              <ContactItem key={contact.id} contact={contact} />
             ))
           )}
         </div>
@@ -161,13 +103,7 @@ export function OperationContactPanel({
   );
 }
 
-function ContactItem({
-  contact,
-  isLegacyContact,
-}: {
-  contact: CompanyContact;
-  isLegacyContact: boolean;
-}) {
+function ContactItem({ contact }: { contact: CompanyContact }) {
   return (
     <article className="rounded-md border border-zinc-200 p-3">
       <div className="flex items-start justify-between gap-3">
@@ -184,16 +120,16 @@ function ContactItem({
             </p>
           )}
         </div>
-        {(contact.isPrimary || isLegacyContact) && (
+        {contact.isPrimary && (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
             <Star className="size-3.5 fill-current" />
-            {isLegacyContact ? "Principal da ficha" : "Principal"}
+            Principal
           </span>
         )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {!contact.isPrimary && !isLegacyContact && contact.validity !== "INVALID" && (
+        {!contact.isPrimary && contact.validity !== "INVALID" && (
           <ContactIntentButton
             contactId={contact.id}
             intent="primary"
@@ -265,17 +201,69 @@ function ContactItem({
         />
       </div>
 
-      <details
-        className="mt-3 border-t border-zinc-100 pt-2"
-        open={isLegacyContact || undefined}
-      >
+      <details className="mt-3 border-t border-zinc-100 pt-2">
         <summary className="inline-flex cursor-pointer items-center gap-1 text-sm text-blue-700">
           <Pencil className="size-3.5" />
-          {isLegacyContact ? "Editar contato principal" : "Editar"}
+          Editar
         </summary>
         <EditContactForm contact={contact} />
       </details>
     </article>
+  );
+}
+
+export function OperationPrimaryPhoneEditor({
+  companyId,
+  phone,
+  responsibleName,
+}: {
+  companyId: string;
+  phone: string;
+  responsibleName?: string | null;
+}) {
+  const [state, action, pending] = useActionState(
+    editPrimaryCompanyPhone,
+    initialState
+  );
+  return (
+    <Sheet>
+      <SheetTrigger
+        render={
+          <Button type="button" variant="ghost" size="sm" aria-label="Editar telefone principal">
+            <Pencil data-icon="inline-start" /> Editar telefone
+          </Button>
+        }
+      />
+      <SheetContent className="w-full sm:max-w-md">
+        <SheetHeader className="border-b border-zinc-200">
+          <SheetTitle>Editar telefone principal</SheetTitle>
+          <SheetDescription>
+            Altere diretamente o telefone exibido na Operação.
+          </SheetDescription>
+        </SheetHeader>
+        <form action={action} className="grid gap-4 px-4">
+          <input type="hidden" name="companyId" value={companyId} />
+          <label className="grid gap-1 text-sm">
+            Telefone principal
+            <Input name="value" defaultValue={phone} required maxLength={255} />
+          </label>
+          <label className="grid gap-1 text-sm">
+            Responsável por este telefone
+            <Input
+              name="responsibleName"
+              defaultValue={responsibleName || ""}
+              maxLength={120}
+            />
+          </label>
+          {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
+          {state.success && <p role="status" className="text-sm text-emerald-700">Telefone atualizado.</p>}
+          <Button type="submit" disabled={pending}>
+            {pending && <Loader2 className="animate-spin" data-icon="inline-start" />}
+            {pending ? "Salvando" : "Salvar telefone"}
+          </Button>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }
 

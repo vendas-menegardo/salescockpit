@@ -25,3 +25,9 @@ export const editCompanyContactSchema = companyContactSchema
   .extend({
     contactId: z.string().min(1),
   });
+
+export const editPrimaryPhoneSchema = z.object({
+  companyId: z.string().min(1),
+  value: z.string().trim().min(8).max(255),
+  responsibleName: z.string().trim().max(120).optional(),
+});

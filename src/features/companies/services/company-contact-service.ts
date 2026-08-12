@@ -122,6 +122,110 @@ export class CompanyContactService {
     return canonicalContactValue(type, value);
   }
 
+  static async updatePrimaryPhone({
+    companyId,
+    value,
+    responsibleName,
+    userId,
+  }: {
+    companyId: string;
+    value: string;
+    responsibleName?: string;
+    userId: string;
+  }) {
+    const canonicalValue = canonicalContactValue(ContactType.PHONE, value);
+    if (!canonicalValue) throw new Error("INVALID_CONTACT_VALUE");
+
+    return prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({
+        where: { id: companyId },
+        select: { phone: true },
+      });
+      if (!company) throw new Error("COMPANY_NOT_FOUND");
+
+      const previousCanonical = company.phone
+        ? canonicalContactValue(ContactType.PHONE, company.phone)
+        : null;
+      const existing = previousCanonical
+        ? await tx.companyContact.findFirst({
+            where: {
+              companyId,
+              type: { in: [ContactType.PHONE, ContactType.WHATSAPP] },
+              canonicalValue: previousCanonical,
+              archivedAt: null,
+            },
+            select: snapshotSelect,
+          })
+        : null;
+      const duplicate = await tx.companyContact.findFirst({
+        where: {
+          companyId,
+          type: { in: [ContactType.PHONE, ContactType.WHATSAPP] },
+          canonicalValue,
+          archivedAt: null,
+          ...(existing ? { id: { not: existing.id } } : {}),
+        },
+        select: snapshotSelect,
+      });
+      if (duplicate) throw new Error("DUPLICATE_CONTACT");
+
+      await tx.company.update({
+        where: { id: companyId },
+        data: { phone: value.trim(), contactName: responsibleName || null },
+      });
+
+      if (existing) {
+        const updated = await tx.companyContact.update({
+          where: { id: existing.id },
+          data: {
+            value: value.trim(),
+            canonicalValue,
+            responsibleName: responsibleName || null,
+          },
+          select: snapshotSelect,
+        });
+        await tx.companyContactEvent.create({
+          data: {
+            contactId: updated.id,
+            companyId,
+            userId,
+            type: "UPDATED",
+            reason: "Telefone exibido na Operação editado diretamente.",
+            previousState: eventState(existing),
+            nextState: eventState(updated),
+          },
+        });
+        return updated;
+      }
+
+      const created = await tx.companyContact.create({
+        data: {
+          companyId,
+          type: ContactType.PHONE,
+          value: value.trim(),
+          originalValue: company.phone,
+          canonicalValue,
+          isPrimary: true,
+          responsibleName: responsibleName || null,
+          source: "FICHA_PRINCIPAL",
+          createdByUserId: userId,
+        },
+        select: snapshotSelect,
+      });
+      await tx.companyContactEvent.create({
+        data: {
+          contactId: created.id,
+          companyId,
+          userId,
+          type: "CREATED",
+          reason: "Telefone exibido na Operação editado diretamente.",
+          nextState: eventState(created),
+        },
+      });
+      return created;
+    });
+  }
+
   static async materializeLegacyContacts(companyId: string, userId: string) {
     return prisma.$transaction(async (tx) => {
       const company = await tx.company.findUnique({
