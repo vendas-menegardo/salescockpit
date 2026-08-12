@@ -37,6 +37,9 @@ export async function updateCompanyQualification(formData: FormData) {
   });
   revalidatePath("/operacao");
   revalidatePath(`/empresas/${parsed.data.companyId}`);
+  revalidatePath("/empresas");
+  revalidatePath("/enriquecimento");
+  revalidatePath("/");
 }
 
 export async function recordCommunicationEvent(
@@ -105,6 +108,8 @@ export async function saveInteraction(
     companyId: formData.get("companyId"),
     result: formData.get("result"),
     nextStage: formData.get("nextStage"),
+    qualification: formData.get("qualification"),
+    qualificationReason: formData.get("qualificationReason") || undefined,
     contactId: formData.get("contactId") || undefined,
     contactUsed: formData.get("contactUsed") || undefined,
     notes: formData.get("notes") || undefined,

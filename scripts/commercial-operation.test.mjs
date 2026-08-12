@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   CommercialStage,
+  CompanyQualification,
   FollowUpStatus,
 } from "@prisma/client";
 
@@ -30,6 +31,14 @@ test("fila não trabalhada respeita base, usuário e estágio inicial", () => {
     { assignedUserId: null },
     { assignedUserId: "user-1" },
   ]);
+  assert.deepEqual(where.AND, [
+    {
+      OR: [
+        { qualification: null },
+        { qualification: CompanyQualification.EM_OPERACAO },
+      ],
+    },
+  ]);
 });
 
 test("retornos de hoje usam intervalo fechado-aberto do dia local", () => {
@@ -52,6 +61,16 @@ test("retornos de hoje usam intervalo fechado-aberto do dia local", () => {
   assert.deepEqual(followUp.dueAt, { gte: start, lt: end });
 });
 
+test("fila congelada usa a qualificação, não um estágio paralelo", () => {
+  const where = buildQueueWhere({
+    baseId: "base-1",
+    userId: "user-1",
+    view: "frozen",
+  });
+  assert.equal(where.qualification, CompanyQualification.CONGELADA);
+  assert.equal(where.stage, undefined);
+});
+
 test("data local de retorno é persistida no horário de Vitória", () => {
   assert.equal(
     parseBusinessDateTime("2026-07-30T10:00").toISOString(),
@@ -66,6 +85,7 @@ test("interação exige resultado, estágio e chave idempotente", () => {
     result: "SEM_RESPOSTA",
     contactUsed: "(27) 99999-0000",
     nextStage: "EM_TENTATIVA",
+    qualification: "EM_OPERACAO",
     idempotencyKey: "a5682d8d-0681-41dc-a07d-986dfb249563",
     view: "not-worked",
   };
@@ -78,6 +98,40 @@ test("interação exige resultado, estágio e chave idempotente", () => {
   );
 });
 
+test("classificação escolhida no atendimento é validada junto com a interação", () => {
+  const base = {
+    baseId: "base-1",
+    companyId: "company-1",
+    result: "SEM_RESPOSTA",
+    contactUsed: "(27) 99999-0000",
+    nextStage: "EM_TENTATIVA",
+    idempotencyKey: "a5682d8d-0681-41dc-a07d-986dfb249563",
+    view: "not-worked",
+  };
+  assert.equal(
+    saveInteractionSchema.safeParse({
+      ...base,
+      qualification: "ATUALIZAR_CONTATO",
+    }).success,
+    true
+  );
+  assert.equal(
+    saveInteractionSchema.safeParse({
+      ...base,
+      qualification: "PERDIDA",
+    }).success,
+    false
+  );
+  assert.equal(
+    saveInteractionSchema.safeParse({
+      ...base,
+      qualification: "PERDIDA",
+      qualificationReason: "Não atua no perfil definido",
+    }).success,
+    true
+  );
+});
+
 test("retorno exige data e motivo juntos", () => {
   const base = {
     baseId: "base-1",
@@ -85,6 +139,7 @@ test("retorno exige data e motivo juntos", () => {
     result: "SOLICITOU_RETORNO",
     contactUsed: "(27) 99999-0000",
     nextStage: "CONTATO_REALIZADO",
+    qualification: "EM_OPERACAO",
     idempotencyKey: "a5682d8d-0681-41dc-a07d-986dfb249563",
     view: "not-worked",
   };
@@ -152,6 +207,29 @@ test("serviço usa idempotência e atualização otimista dentro da transação"
   assert.match(source, /tx\.baseCompany\.updateMany/);
   assert.match(source, /stage: membership\.stage/);
   assert.match(source, /updated\.count !== 1/);
+  assert.match(source, /input\.view === "returns-today"/);
+  assert.match(source, /input\.view === "overdue"/);
+  assert.match(source, /followUpTask\.updateMany/);
+  assert.match(source, /status: "COMPLETED"/);
+  assert.match(source, /completedAt: interaction\.createdAt/);
+});
+
+test("classificação e atendimento são persistidos na mesma transação", () => {
+  const source = fs.readFileSync(
+    "src/features/operation/services/operation-service.ts",
+    "utf8"
+  );
+  const workspace = fs.readFileSync(
+    "src/features/operation/components/operation-workspace.tsx",
+    "utf8"
+  );
+  assert.match(source, /qualification: nextQualification/);
+  assert.match(source, /qualificationReason: nextQualificationReason/);
+  assert.match(source, /baseCompanyChange\.create/);
+  assert.match(workspace, /name="qualification"/);
+  assert.match(workspace, /form="operation-interaction-form"/);
+  assert.match(workspace, /salva junto com o atendimento/i);
+  assert.doesNotMatch(workspace, /action=\{updateCompanyQualification\}/);
 });
 
 test("chaves idempotentes são criadas no servidor sem divergência de hidratação", () => {

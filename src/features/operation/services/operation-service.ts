@@ -247,9 +247,8 @@ export class OperationService {
         ) ??
         (await prisma.baseCompany.findFirst({
           where: {
-            baseId: selectedBaseId,
+            ...where,
             companyId: cursor.currentCompanyId,
-            OR: [{ assignedUserId: null }, { assignedUserId: userId }],
           },
           include: companyInclude,
         })))
@@ -257,9 +256,8 @@ export class OperationService {
     const requestedCompany = companyId
       ? await prisma.baseCompany.findFirst({
           where: {
-            baseId: selectedBaseId,
+            ...where,
             companyId,
-            OR: [{ assignedUserId: null }, { assignedUserId: userId }],
           },
           include: companyInclude,
         })
@@ -270,9 +268,8 @@ export class OperationService {
       cursor.previousCompanyId !== current?.companyId
         ? await prisma.baseCompany.findFirst({
             where: {
-              baseId: selectedBaseId,
+              ...where,
               companyId: cursor.previousCompanyId,
-              OR: [{ assignedUserId: null }, { assignedUserId: userId }],
             },
             include: companyInclude,
           })
@@ -297,7 +294,12 @@ export class OperationService {
               companyId: input.companyId,
             },
           },
-          select: { stage: true, qualification: true, assignedUserId: true },
+          select: {
+            stage: true,
+            qualification: true,
+            qualificationReason: true,
+            assignedUserId: true,
+          },
         });
         if (!membership) throw new Error("MEMBERSHIP_NOT_FOUND");
         if (
@@ -460,7 +462,7 @@ export class OperationService {
               },
             });
 
-        let shouldQualifyForContactUpdate = false;
+        let recommendContactUpdate = false;
         const invalidReason =
           input.result === "NUMERO_ERRADO"
             ? "WRONG_NUMBER"
@@ -514,9 +516,7 @@ export class OperationService {
             },
           });
           if (usablePhones === 0) {
-            shouldQualifyForContactUpdate =
-              membership.qualification === null ||
-              membership.qualification === "EM_OPERACAO";
+            recommendContactUpdate = true;
             await tx.baseCompanyChange.create({
               data: {
                 baseId: input.baseId,
@@ -531,6 +531,22 @@ export class OperationService {
           }
         }
 
+        const previousQualification =
+          membership.qualification ?? "EM_OPERACAO";
+        const userChangedQualification =
+          input.qualification !== previousQualification ||
+          (input.qualificationReason || null) !==
+            membership.qualificationReason;
+        const shouldAutomaticallyQualifyForContactUpdate =
+          recommendContactUpdate && !userChangedQualification;
+        const nextQualification = shouldAutomaticallyQualifyForContactUpdate
+          ? ("ATUALIZAR_CONTATO" as const)
+          : input.qualification;
+        const nextQualificationReason =
+          shouldAutomaticallyQualifyForContactUpdate
+            ? "Nenhum telefone utilizável permanece cadastrado."
+            : input.qualificationReason || null;
+
         const updated = await tx.baseCompany.updateMany({
           where: {
             baseId: input.baseId,
@@ -543,27 +559,31 @@ export class OperationService {
             status: COMMERCIAL_STAGE_LABELS[input.nextStage],
             assignedUserId: input.userId,
             lastInteractionAt: interaction.createdAt,
-            ...(shouldQualifyForContactUpdate
-              ? {
-                  qualification: "ATUALIZAR_CONTATO" as const,
-                  qualificationReason:
-                    "Nenhum telefone utilizável permanece cadastrado.",
-                }
-              : {}),
+            qualification: nextQualification,
+            qualificationReason: nextQualificationReason,
           },
         });
         if (updated.count !== 1) throw new Error("CONCURRENT_UPDATE");
 
-        if (shouldQualifyForContactUpdate) {
+        if (
+          membership.qualification !== nextQualification ||
+          membership.qualificationReason !== nextQualificationReason
+        ) {
           await tx.baseCompanyChange.create({
             data: {
               baseId: input.baseId,
               companyId: input.companyId,
               userId: input.userId,
               type: "QUALIFICATION_CHANGED",
-              reason: "Nenhum telefone utilizável permanece cadastrado.",
-              previousState: { qualification: membership.qualification },
-              nextState: { qualification: "ATUALIZAR_CONTATO" },
+              reason: nextQualificationReason,
+              previousState: {
+                qualification: membership.qualification,
+                reason: membership.qualificationReason,
+              },
+              nextState: {
+                qualification: nextQualification,
+                reason: nextQualificationReason,
+              },
             },
           });
         }
@@ -577,6 +597,21 @@ export class OperationService {
               type: "STAGE_CHANGED",
               previousState: { stage: membership.stage },
               nextState: { stage: input.nextStage },
+            },
+          });
+        }
+
+        if (input.view === "returns-today" || input.view === "overdue") {
+          await tx.followUpTask.updateMany({
+            where: {
+              baseId: input.baseId,
+              companyId: input.companyId,
+              userId: input.userId,
+              status: "PENDING",
+            },
+            data: {
+              status: "COMPLETED",
+              completedAt: interaction.createdAt,
             },
           });
         }

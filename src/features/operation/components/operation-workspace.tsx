@@ -30,7 +30,6 @@ import {
   moveOperationCursor,
   recordCommunicationEvent,
   saveInteraction,
-  updateCompanyQualification,
   type OperationActionState,
 } from "../actions/operation-actions";
 import {
@@ -566,16 +565,12 @@ export function OperationWorkspace({
           )}
         </details>
 
-        <form
-          action={updateCompanyQualification}
-          className="grid shrink-0 gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-2.5 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]"
-        >
-          <input type="hidden" name="baseId" value={baseId} />
-          <input type="hidden" name="companyId" value={current.companyId} />
+        <div className="grid shrink-0 gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-2.5 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
           <label className="grid gap-1 text-xs">
             Qualificação operacional
             <select
               name="qualification"
+              form="operation-interaction-form"
               defaultValue={current.qualification || "EM_OPERACAO"}
               className="h-8 rounded-lg border border-input bg-white px-2.5 text-sm"
             >
@@ -591,17 +586,18 @@ export function OperationWorkspace({
           <label className="grid gap-1 text-xs">
             Motivo
             <input
-              name="reason"
+              name="qualificationReason"
+              form="operation-interaction-form"
               defaultValue={current.qualificationReason || ""}
               maxLength={500}
               className="h-8 rounded-lg border border-input bg-white px-2.5 text-sm"
               placeholder="Obrigatório para congelada, perdida ou inapta"
             />
           </label>
-          <Button type="submit" variant="outline" size="sm" className="self-end">
-            Atualizar
-          </Button>
-        </form>
+          <p className="text-xs text-amber-800 md:col-span-2">
+            A qualificação será salva junto com o atendimento.
+          </p>
+        </div>
 
         <form
           id="operation-interaction-form"

@@ -1,5 +1,6 @@
 import {
   CommercialStage,
+  CompanyQualification,
   FollowUpStatus,
   type Prisma,
 } from "@prisma/client";
@@ -42,6 +43,14 @@ export function buildQueueWhere({
   const common: Prisma.BaseCompanyWhereInput = {
     baseId,
     OR: [{ assignedUserId: null }, { assignedUserId: userId }],
+    AND: [
+      {
+        OR: [
+          { qualification: null },
+          { qualification: CompanyQualification.EM_OPERACAO },
+        ],
+      },
+    ],
   };
   const { start, end } = getBusinessDayRange(now);
 
@@ -89,7 +98,11 @@ export function buildQueueWhere({
         },
       };
     case "frozen":
-      return { ...common, stage: CommercialStage.CONGELADA };
+      return {
+        baseId,
+        OR: [{ assignedUserId: null }, { assignedUserId: userId }],
+        qualification: CompanyQualification.CONGELADA,
+      };
     case "not-worked":
     default:
       return { ...common, stage: CommercialStage.NOVA };

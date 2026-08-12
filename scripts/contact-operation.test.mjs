@@ -14,6 +14,7 @@ test("tentativa exige o telefone efetivamente utilizado", () => {
     companyId: "company-1",
     result: "SEM_RESPOSTA",
     nextStage: "EM_TENTATIVA",
+    qualification: "EM_OPERACAO",
     idempotencyKey: "b614653f-5c5a-49b7-a328-f7d4b499ef75",
     view: "not-worked",
   });
@@ -91,11 +92,12 @@ test("último telefone inválido classifica o vínculo para atualização de con
     "utf8"
   );
   assert.match(service, /usablePhones === 0/);
-  assert.match(service, /shouldQualifyForContactUpdate/);
-  assert.match(service, /qualification:\s*"ATUALIZAR_CONTATO"/);
+  assert.match(service, /recommendContactUpdate = true/);
+  assert.match(service, /shouldAutomaticallyQualifyForContactUpdate/);
+  assert.match(service, /\("ATUALIZAR_CONTATO" as const\)/);
   assert.match(service, /type:\s*"QUALIFICATION_CHANGED"/);
-  assert.match(service, /membership\.qualification === null/);
-  assert.match(service, /membership\.qualification === "EM_OPERACAO"/);
+  assert.match(service, /userChangedQualification/);
+  assert.match(service, /input\.qualification/);
 });
 
 test("Empresas abre diretamente a empresa e preserva retorno", () => {

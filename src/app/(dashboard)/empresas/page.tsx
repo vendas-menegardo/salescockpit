@@ -141,7 +141,11 @@ export default async function EmpresasPage({ searchParams }: { searchParams: Pro
                   const membership = values.baseId
                     ? company.bases.find((item) => item.baseId === values.baseId)
                     : company.bases[0];
-                  const operationMembership = company.bases.find((item) => item.base.isActive);
+                  const operationMembership = company.bases.find(
+                    (item) =>
+                      item.base.isActive &&
+                      (!item.qualification || item.qualification === "EM_OPERACAO")
+                  );
                   const contact = company.contacts.find((item) => item.validity !== "INVALID");
                   const responsible = company.contactName || company.contacts.find((item) => item.responsibleName)?.responsibleName;
                   const rowHref = companyListUrl({ ...values, page: String(result.page) }, { companyId: company.id });
@@ -183,7 +187,11 @@ type CompanyDetail = NonNullable<Awaited<ReturnType<typeof CompanyService.findBy
 function Dossier({ company, returnTo }: { company: CompanyDetail; returnTo: string }) {
   const displayName = getCompanyDisplayName(company);
   const secondaryName = getCompanySecondaryName(company);
-  const operationMembership = company.bases.find((item) => item.base.isActive);
+  const operationMembership = company.bases.find(
+    (item) =>
+      item.base.isActive &&
+      (!item.qualification || item.qualification === "EM_OPERACAO")
+  );
   return (
     <CompanyDossierSheet title={displayName}>
       <div className="flex flex-wrap items-start justify-between gap-3">
