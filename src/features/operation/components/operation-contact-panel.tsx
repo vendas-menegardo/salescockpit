@@ -22,6 +22,7 @@ import {
   type ContactActionState,
   updateCompanyContact,
 } from "@/features/companies/actions/company-contact-actions";
+import { canonicalPhone } from "@/lib/phone-normalizer";
 import {
   CONTACT_TYPE_LABELS,
   CONTACT_VALIDITY_LABELS,
@@ -34,12 +35,25 @@ export function OperationContactPanel({
   companyId,
   baseId,
   contacts,
+  primaryPhone,
+  primaryResponsibleName,
 }: {
   companyId: string;
   baseId?: string;
   contacts: CompanyContact[];
+  primaryPhone?: string | null;
+  primaryResponsibleName?: string | null;
 }) {
-  const activeContacts = contacts.filter((contact) => !contact.archivedAt);
+  const primaryCanonical = primaryPhone ? canonicalPhone(primaryPhone) : null;
+  const activeContacts = contacts.filter(
+    (contact) =>
+      !contact.archivedAt &&
+      !(
+        primaryCanonical &&
+        ["PHONE", "WHATSAPP"].includes(contact.type) &&
+        contact.canonicalValue === primaryCanonical
+      )
+  );
   const archivedContacts = contacts.filter((contact) => contact.archivedAt);
 
   return (
@@ -61,7 +75,22 @@ export function OperationContactPanel({
           </SheetDescription>
         </SheetHeader>
 
+        {primaryPhone && (
+          <div className="mx-4 rounded-md border border-blue-200 bg-blue-50/60 p-3">
+            <div className="mb-3 flex items-center gap-2">
+              <Star className="size-4 fill-current text-amber-600" />
+              <strong className="text-sm">Telefone principal</strong>
+            </div>
+            <PrimaryPhoneForm
+              companyId={companyId}
+              phone={primaryPhone}
+              responsibleName={primaryResponsibleName}
+            />
+          </div>
+        )}
+
         <div className="grid gap-3 px-4">
+          <h3 className="text-sm font-semibold">Outros telefones e contatos</h3>
           {activeContacts.length === 0 ? (
             <p className="text-sm text-zinc-500">Nenhum contato cadastrado.</p>
           ) : (
@@ -212,7 +241,7 @@ function ContactItem({ contact }: { contact: CompanyContact }) {
   );
 }
 
-export function OperationPrimaryPhoneEditor({
+function PrimaryPhoneForm({
   companyId,
   phone,
   responsibleName,
@@ -226,22 +255,7 @@ export function OperationPrimaryPhoneEditor({
     initialState
   );
   return (
-    <Sheet>
-      <SheetTrigger
-        render={
-          <Button type="button" variant="ghost" size="sm" aria-label="Editar telefone principal">
-            <Pencil data-icon="inline-start" /> Editar telefone
-          </Button>
-        }
-      />
-      <SheetContent className="w-full sm:max-w-md">
-        <SheetHeader className="border-b border-zinc-200">
-          <SheetTitle>Editar telefone principal</SheetTitle>
-          <SheetDescription>
-            Altere diretamente o telefone exibido na Operação.
-          </SheetDescription>
-        </SheetHeader>
-        <form action={action} className="grid gap-4 px-4">
+        <form action={action} className="grid gap-3">
           <input type="hidden" name="companyId" value={companyId} />
           <label className="grid gap-1 text-sm">
             Telefone principal
@@ -262,8 +276,6 @@ export function OperationPrimaryPhoneEditor({
             {pending ? "Salvando" : "Salvar telefone"}
           </Button>
         </form>
-      </SheetContent>
-    </Sheet>
   );
 }
 

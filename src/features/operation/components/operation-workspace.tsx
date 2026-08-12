@@ -44,10 +44,7 @@ import {
   INTERACTION_RESULT_LABELS,
   type OperationView,
 } from "../constants";
-import {
-  OperationContactPanel,
-  OperationPrimaryPhoneEditor,
-} from "./operation-contact-panel";
+import { OperationContactPanel } from "./operation-contact-panel";
 import { OperationCompanyPanel } from "./operation-company-panel";
 
 type CompanyData = {
@@ -342,13 +339,6 @@ export function OperationWorkspace({
             <Clipboard data-icon="inline-start" />
             {copied ? "Copiado" : "Copiar"}
           </Button>
-          {current.company.phone && (
-            <OperationPrimaryPhoneEditor
-              companyId={current.companyId}
-              phone={current.company.phone}
-              responsibleName={current.company.contactName}
-            />
-          )}
           <form action={callAction}>
             <input type="hidden" name="baseId" value={baseId} />
             <input
@@ -398,6 +388,8 @@ export function OperationWorkspace({
             companyId={current.companyId}
             baseId={baseId}
             contacts={current.company.contacts}
+            primaryPhone={current.company.phone}
+            primaryResponsibleName={current.company.contactName}
           />
           <OperationCompanyPanel company={current.company} />
         </div>
