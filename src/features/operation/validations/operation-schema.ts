@@ -11,6 +11,8 @@ export const saveInteractionSchema = z
     companyId: z.string().min(1),
     result: z.nativeEnum(InteractionResult),
     nextStage: z.nativeEnum(CommercialStage),
+    qualification: z.nativeEnum(CompanyQualification),
+    qualificationReason: z.string().trim().max(500).optional(),
     contactId: z.string().trim().min(1).optional(),
     contactUsed: z.string().trim().max(255).optional(),
     notes: z.string().trim().max(2000).optional(),
@@ -40,6 +42,16 @@ export const saveInteractionSchema = z
         code: "custom",
         message: "A data do retorno é inválida.",
         path: ["followUpAt"],
+      });
+    }
+    if (
+      ["CONGELADA", "PERDIDA", "INAPTA"].includes(data.qualification) &&
+      !data.qualificationReason
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["qualificationReason"],
+        message: "Informe o motivo da classificação.",
       });
     }
   });

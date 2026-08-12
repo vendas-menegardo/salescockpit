@@ -38,7 +38,9 @@ export default async function CompanyDetailsPage({
     contactCount: company.contacts.length,
   });
   const activeOperationMembership = company.bases.find(
-    (membership) => membership.base.isActive
+    (membership) =>
+      membership.base.isActive &&
+      (!membership.qualification || membership.qualification === "EM_OPERACAO")
   );
   const latestResultInteractionId = company.interactions.find(
     (interaction) => interaction.result
