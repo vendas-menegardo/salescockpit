@@ -8,6 +8,7 @@ import {
   Database,
   LayoutDashboard,
   PhoneCall,
+  Sparkles,
   Settings,
   Upload,
   Users,
@@ -38,6 +39,12 @@ const menu = [
     name: "Empresas",
     href: "/empresas",
     icon: Building2,
+    group: "Dados",
+  },
+  {
+    name: "Enriquecimento",
+    href: "/enriquecimento",
+    icon: Sparkles,
     group: "Dados",
   },
   {

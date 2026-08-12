@@ -28,6 +28,7 @@ const snapshotSelect = {
   type: true,
   value: true,
   canonicalValue: true,
+  source: true,
   isPrimary: true,
   isWhatsapp: true,
   validity: true,
@@ -71,6 +72,7 @@ function eventState(contact: ContactSnapshot): Prisma.InputJsonObject {
     type: contact.type,
     value: contact.value,
     canonicalValue: contact.canonicalValue,
+    source: contact.source,
     isPrimary: contact.isPrimary,
     isWhatsapp: contact.isWhatsapp,
     validity: contact.validity,
@@ -257,6 +259,7 @@ export class CompanyContactService {
       | "invalid_wrong"
       | "invalid_nonexistent"
       | "invalid_email"
+      | "invalid_other"
       | "archive"
       | "restore";
     reason?: string;
@@ -280,8 +283,10 @@ export class CompanyContactService {
           ? ContactInvalidReason.WRONG_NUMBER
           : intent === "invalid_nonexistent"
             ? ContactInvalidReason.NONEXISTENT
-            : intent === "invalid_email"
+          : intent === "invalid_email"
               ? ContactInvalidReason.INVALID_EMAIL
+            : intent === "invalid_other"
+              ? ContactInvalidReason.OTHER
             : null;
       const now = new Date();
       const data: Prisma.CompanyContactUpdateInput =
