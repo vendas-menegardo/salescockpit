@@ -30,6 +30,7 @@ import {
   moveOperationCursor,
   recordCommunicationEvent,
   saveInteraction,
+  updateCompanyQualification,
   type OperationActionState,
 } from "../actions/operation-actions";
 import {
@@ -59,6 +60,7 @@ type CompanyData = {
   city: string | null;
   state: string | null;
   notes: string | null;
+  description: string | null;
   contacts: CompanyContact[];
   followUps: FollowUpTask[];
   interactions: Array<
@@ -384,7 +386,10 @@ export function OperationWorkspace({
           )}
           <OperationContactPanel
             companyId={current.companyId}
+            baseId={baseId}
             contacts={current.company.contacts}
+            legacyPhone={current.company.phone}
+            legacyEmail={current.company.email}
           />
           <OperationCompanyPanel company={current.company} />
         </div>
@@ -594,9 +599,21 @@ export function OperationWorkspace({
               placeholder="Obrigatório para congelada, perdida ou inapta"
             />
           </label>
-          <p className="text-xs text-amber-800 md:col-span-2">
-            A qualificação será salva junto com o atendimento.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
+            <p className="text-xs text-amber-800">
+              Salve com o atendimento ou registre apenas uma decisão obtida por pesquisa.
+            </p>
+            <Button
+              type="submit"
+              form="operation-interaction-form"
+              formAction={updateCompanyQualification}
+              formNoValidate
+              variant="outline"
+              size="sm"
+            >
+              Salvar decisão sem atendimento
+            </Button>
+          </div>
         </div>
 
         <form

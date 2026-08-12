@@ -27,6 +27,11 @@ export const quickCompanyProfileSchema = z.object({
   companyId: z.string().min(1),
   corporateName: z.string().trim().min(2).max(255),
   tradeName: optionalText(255),
+  segment: optionalText(180),
+  website: optionalText(500),
+  city: optionalText(180),
+  state: z.string().trim().max(2).transform((value) => value.toUpperCase() || null),
+  description: optionalText(2000),
   contactName: optionalText(255),
   notes: optionalText(4000),
 });

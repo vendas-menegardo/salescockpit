@@ -45,6 +45,11 @@ test("edição rápida valida razão social e nome fantasia separadamente", () =
     companyId: "company-1",
     corporateName: "Razão Social Preservada",
     tradeName: "Nome Fantasia Novo",
+    segment: "Associação",
+    website: "https://example.test",
+    city: "Vitória",
+    state: "es",
+    description: "Atividade pesquisada durante a operação.",
     contactName: "Responsável",
     notes: "Atualização manual",
   });
@@ -52,6 +57,7 @@ test("edição rápida valida razão social e nome fantasia separadamente", () =
   if (result.success) {
     assert.equal(result.data.corporateName, "Razão Social Preservada");
     assert.equal(result.data.tradeName, "Nome Fantasia Novo");
+    assert.equal(result.data.state, "ES");
   }
 });
 
@@ -118,6 +124,9 @@ test("Operação usa a mesma regra de nome e edita os dois campos", () => {
   assert.match(workspace, /getCompanySecondaryName\(current\.company\)/);
   assert.match(panel, /name="corporateName"/);
   assert.match(panel, /name="tradeName"/);
+  for (const field of ["segment", "website", "city", "state", "description"]) {
+    assert.match(panel, new RegExp(`name="${field}"`));
+  }
   assert.doesNotMatch(panel, /corporateName[^\n]+disabled/);
 });
 
