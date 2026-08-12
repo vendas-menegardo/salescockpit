@@ -255,10 +255,11 @@ test("Operação gerencia ficha principal e situações individuais dos telefone
     "src/features/companies/services/company-contact-service.ts",
     "utf8"
   );
-  assert.match(panel, /OperationPrimaryPhoneEditor/);
-  assert.match(panel, /Editar telefone principal/);
+  assert.match(panel, /Telefone principal/);
+  assert.match(panel, /Outros telefones e contatos/);
   assert.match(panel, /Salvar telefone/);
   assert.doesNotMatch(panel, /Organizar contatos da ficha/);
+  assert.doesNotMatch(panel, /A ficha possui/);
   assert.match(service, /responsibleName: company\.contactName/);
   for (const intent of [
     "invalid_unavailable",
