@@ -52,6 +52,18 @@ export function OperationContactPanel({
 }) {
   const activeContacts = contacts.filter((contact) => !contact.archivedAt);
   const archivedContacts = contacts.filter((contact) => contact.archivedAt);
+  const isLegacyContact = (contact: CompanyContact) => {
+    const legacyValue = ["PHONE", "WHATSAPP"].includes(contact.type)
+      ? legacyPhone
+      : contact.type === "EMAIL"
+        ? legacyEmail
+        : null;
+    return Boolean(
+      legacyValue &&
+        comparableContact(contact.type, contact.value) ===
+          comparableContact(contact.type, legacyValue)
+    );
+  };
   const unmanagedLegacy = [
     legacyPhone
       ? { type: "PHONE" as const, value: legacyPhone, label: "telefone" }
@@ -75,7 +87,7 @@ export function OperationContactPanel({
         render={
           <Button type="button" variant="ghost" size="sm">
             <PhoneCall data-icon="inline-start" />
-            Gerenciar contatos
+            Editar telefones e contatos
           </Button>
         }
       />
@@ -108,7 +120,11 @@ export function OperationContactPanel({
             <p className="text-sm text-zinc-500">Nenhum contato cadastrado.</p>
           ) : (
             activeContacts.map((contact) => (
-              <ContactItem key={contact.id} contact={contact} />
+              <ContactItem
+                key={contact.id}
+                contact={contact}
+                isLegacyContact={isLegacyContact(contact)}
+              />
             ))
           )}
         </div>
@@ -145,7 +161,13 @@ export function OperationContactPanel({
   );
 }
 
-function ContactItem({ contact }: { contact: CompanyContact }) {
+function ContactItem({
+  contact,
+  isLegacyContact,
+}: {
+  contact: CompanyContact;
+  isLegacyContact: boolean;
+}) {
   return (
     <article className="rounded-md border border-zinc-200 p-3">
       <div className="flex items-start justify-between gap-3">
@@ -162,15 +184,16 @@ function ContactItem({ contact }: { contact: CompanyContact }) {
             </p>
           )}
         </div>
-        {contact.isPrimary && (
+        {(contact.isPrimary || isLegacyContact) && (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
-            <Star className="size-3.5 fill-current" /> Principal
+            <Star className="size-3.5 fill-current" />
+            {isLegacyContact ? "Principal da ficha" : "Principal"}
           </span>
         )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {!contact.isPrimary && contact.validity !== "INVALID" && (
+        {!contact.isPrimary && !isLegacyContact && contact.validity !== "INVALID" && (
           <ContactIntentButton
             contactId={contact.id}
             intent="primary"
@@ -242,9 +265,13 @@ function ContactItem({ contact }: { contact: CompanyContact }) {
         />
       </div>
 
-      <details className="mt-3 border-t border-zinc-100 pt-2">
+      <details
+        className="mt-3 border-t border-zinc-100 pt-2"
+        open={isLegacyContact || undefined}
+      >
         <summary className="inline-flex cursor-pointer items-center gap-1 text-sm text-blue-700">
-          <Pencil className="size-3.5" /> Editar
+          <Pencil className="size-3.5" />
+          {isLegacyContact ? "Editar contato principal" : "Editar"}
         </summary>
         <EditContactForm contact={contact} />
       </details>
