@@ -9,12 +9,42 @@ import { CompanyContactService } from "../services/company-contact-service";
 import {
   companyContactSchema,
   editCompanyContactSchema,
+  editPrimaryPhoneSchema,
 } from "../validations/company-contact-schema";
 
 export type ContactActionState = {
   error?: string;
   success?: boolean;
 };
+
+export async function editPrimaryCompanyPhone(
+  _previousState: ContactActionState,
+  formData: FormData
+): Promise<ContactActionState> {
+  const session = await requireSession();
+  const parsed = editPrimaryPhoneSchema.safeParse({
+    companyId: formData.get("companyId"),
+    value: formData.get("value"),
+    responsibleName: formData.get("responsibleName") || undefined,
+  });
+  if (!parsed.success) return { error: "Informe um telefone válido." };
+  try {
+    await CompanyContactService.updatePrimaryPhone({
+      ...parsed.data,
+      userId: session.user.id,
+    });
+    revalidateCompanyContactPaths(parsed.data.companyId);
+    return { success: true };
+  } catch (error) {
+    if (
+      (error instanceof Error && error.message === "DUPLICATE_CONTACT") ||
+      (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+    ) {
+      return { error: "Este telefone já está cadastrado para a empresa." };
+    }
+    return { error: "Não foi possível atualizar o telefone." };
+  }
+}
 
 function revalidateCompanyContactPaths(companyId: string) {
   revalidatePath(`/empresas/${companyId}`);
