@@ -1,7 +1,8 @@
 "use client";
 
 import type { CompanyContact } from "@prisma/client";
-import { useActionState } from "react";
+import { createContext, useActionState, useContext } from "react";
+import { useFormStatus } from "react-dom";
 import { Archive, Check, Loader2, Pencil, PhoneCall, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -17,25 +18,56 @@ import {
 import { AddContactForm } from "@/features/companies/components/add-contact-form";
 import {
   editCompanyContact,
+  materializeLegacyContacts,
   type ContactActionState,
   updateCompanyContact,
 } from "@/features/companies/actions/company-contact-actions";
+import { canonicalPhone } from "@/lib/phone-normalizer";
 import {
   CONTACT_TYPE_LABELS,
   CONTACT_VALIDITY_LABELS,
 } from "../constants";
 
 const initialState: ContactActionState = {};
+const ContactBaseContext = createContext<string | undefined>(undefined);
+
+function comparableContact(type: string, value: string) {
+  return ["PHONE", "WHATSAPP"].includes(type)
+    ? canonicalPhone(value)
+    : value.trim().toLowerCase();
+}
 
 export function OperationContactPanel({
   companyId,
+  baseId,
   contacts,
+  legacyPhone,
+  legacyEmail,
 }: {
   companyId: string;
+  baseId?: string;
   contacts: CompanyContact[];
+  legacyPhone?: string | null;
+  legacyEmail?: string | null;
 }) {
   const activeContacts = contacts.filter((contact) => !contact.archivedAt);
   const archivedContacts = contacts.filter((contact) => contact.archivedAt);
+  const unmanagedLegacy = [
+    legacyPhone
+      ? { type: "PHONE" as const, value: legacyPhone, label: "telefone" }
+      : null,
+    legacyEmail
+      ? { type: "EMAIL" as const, value: legacyEmail, label: "e-mail" }
+      : null,
+  ].filter(
+    (legacy): legacy is { type: "PHONE" | "EMAIL"; value: string; label: string } =>
+      Boolean(legacy) &&
+      !contacts.some(
+        (contact) =>
+          comparableContact(contact.type, contact.value) ===
+          comparableContact(legacy!.type, legacy!.value)
+      )
+  );
 
   return (
     <Sheet>
@@ -48,12 +80,28 @@ export function OperationContactPanel({
         }
       />
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <ContactBaseContext.Provider value={baseId}>
         <SheetHeader className="border-b border-zinc-200">
           <SheetTitle>Contatos da empresa</SheetTitle>
           <SheetDescription>
             Telefones e e-mails são tratados individualmente e mantêm histórico.
           </SheetDescription>
         </SheetHeader>
+
+        {unmanagedLegacy.length > 0 && (
+          <div className="mx-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+            <p className="font-medium text-amber-950">
+              A ficha possui {unmanagedLegacy.map((item) => item.label).join(" e ")} ainda sem gestão individual.
+            </p>
+            <p className="mt-1 text-xs text-amber-800">
+              Organize para editar, identificar o responsável, validar ou arquivar esses contatos.
+            </p>
+            <form action={materializeLegacyContacts} className="mt-2">
+              <input type="hidden" name="companyId" value={companyId} />
+              <PendingSubmitButton label="Organizar contatos da ficha" />
+            </form>
+          </div>
+        )}
 
         <div className="grid gap-3 px-4">
           {activeContacts.length === 0 ? (
@@ -91,6 +139,7 @@ export function OperationContactPanel({
             </div>
           </details>
         )}
+        </ContactBaseContext.Provider>
       </SheetContent>
     </Sheet>
   );
@@ -157,6 +206,24 @@ function ContactItem({ contact }: { contact: CompanyContact }) {
                 label="Número inexistente"
                 reason="Operadora informou que o número não existe."
               />
+              <ContactIntentButton
+                contactId={contact.id}
+                intent="invalid_unavailable"
+                label="Indisponível"
+                reason="Número indisponível após tentativa de ligação."
+              />
+              <ContactIntentButton
+                contactId={contact.id}
+                intent="invalid_out_of_service"
+                label="Fora de serviço"
+                reason="Número informado como fora de serviço."
+              />
+              <ContactIntentButton
+                contactId={contact.id}
+                intent="invalid_third_party"
+                label="Terceiro / contabilidade"
+                reason="Número pertence a terceiro e não deve ser usado para contatar a empresa."
+              />
             </>
           )}
         {contact.type === "EMAIL" && contact.validity !== "INVALID" && (
@@ -198,16 +265,33 @@ function ContactIntentButton({
   reason?: string;
   icon?: React.ReactNode;
 }) {
+  const baseId = useContext(ContactBaseContext);
   return (
     <form action={updateCompanyContact}>
       <input type="hidden" name="contactId" value={contactId} />
+      {baseId && <input type="hidden" name="baseId" value={baseId} />}
       <input type="hidden" name="intent" value={intent} />
       {reason && <input type="hidden" name="reason" value={reason} />}
-      <Button type="submit" variant="outline" size="xs">
-        {icon}
-        {label}
-      </Button>
+      <PendingSubmitButton label={label} icon={icon} size="xs" />
     </form>
+  );
+}
+
+function PendingSubmitButton({
+  label,
+  icon,
+  size = "sm",
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  size?: "xs" | "sm";
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" variant="outline" size={size} disabled={pending}>
+      {pending ? <Loader2 className="animate-spin" data-icon="inline-start" /> : icon}
+      {pending ? "Salvando" : label}
+    </Button>
   );
 }
 

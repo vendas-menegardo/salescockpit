@@ -122,6 +122,79 @@ export class CompanyContactService {
     return canonicalContactValue(type, value);
   }
 
+  static async materializeLegacyContacts(companyId: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({
+        where: { id: companyId },
+        select: { id: true, phone: true, email: true, contactName: true },
+      });
+      if (!company) throw new Error("COMPANY_NOT_FOUND");
+
+      const candidates = [
+        company.phone
+          ? { type: ContactType.PHONE, value: company.phone, responsibleName: company.contactName }
+          : null,
+        company.email
+          ? { type: ContactType.EMAIL, value: company.email, responsibleName: company.contactName }
+          : null,
+      ].filter(Boolean) as Array<{
+        type: ContactType;
+        value: string;
+        responsibleName: string | null;
+      }>;
+      let created = 0;
+      for (const candidate of candidates) {
+        const canonicalValue = canonicalContactValue(candidate.type, candidate.value);
+        if (!canonicalValue) continue;
+        const duplicate = await tx.companyContact.findFirst({
+          where: {
+            companyId,
+            type: { in: categoryTypes(candidate.type) },
+            canonicalValue,
+            archivedAt: null,
+          },
+          select: { id: true },
+        });
+        if (duplicate) continue;
+
+        const hasPrimary = await tx.companyContact.count({
+          where: {
+            companyId,
+            type: { in: categoryTypes(candidate.type) },
+            isPrimary: true,
+            archivedAt: null,
+          },
+        });
+        const contact = await tx.companyContact.create({
+          data: {
+            companyId,
+            type: candidate.type,
+            value: candidate.value.trim(),
+            originalValue: candidate.value,
+            canonicalValue,
+            isPrimary: hasPrimary === 0,
+            responsibleName: candidate.responsibleName,
+            source: "FICHA_PRINCIPAL",
+            createdByUserId: userId,
+          },
+          select: snapshotSelect,
+        });
+        await tx.companyContactEvent.create({
+          data: {
+            contactId: contact.id,
+            companyId,
+            userId,
+            type: "CREATED",
+            reason: "Contato principal convertido para gestão individual.",
+            nextState: eventState(contact),
+          },
+        });
+        created++;
+      }
+      return { companyId, created };
+    });
+  }
+
   static async create(input: ContactInput & { userId: string }) {
     const canonicalValue = canonicalContactValue(input.type, input.value);
     if (!canonicalValue) throw new Error("INVALID_CONTACT_VALUE");
@@ -204,6 +277,19 @@ export class CompanyContactService {
       if (!previous || previous.archivedAt) throw new Error("CONTACT_NOT_FOUND");
       const canonicalValue = canonicalContactValue(previous.type, input.value);
       if (!canonicalValue) throw new Error("INVALID_CONTACT_VALUE");
+      const company = await tx.company.findUnique({
+        where: { id: previous.companyId },
+        select: { phone: true, email: true },
+      });
+      const legacyValue = isPhoneType(previous.type)
+        ? company?.phone
+        : previous.type === ContactType.EMAIL
+          ? company?.email
+          : null;
+      const mirrorsLegacy =
+        previous.source === "FICHA_PRINCIPAL" ||
+        canonicalContactValue(previous.type, legacyValue || "") ===
+          previous.canonicalValue;
 
       const duplicate = await tx.companyContact.findFirst({
         where: {
@@ -229,6 +315,16 @@ export class CompanyContactService {
         },
         select: snapshotSelect,
       });
+      if (mirrorsLegacy) {
+        await tx.company.update({
+          where: { id: previous.companyId },
+          data: isPhoneType(previous.type)
+            ? { phone: updated.value }
+            : previous.type === ContactType.EMAIL
+              ? { email: updated.value }
+              : {},
+        });
+      }
       await tx.companyContactEvent.create({
         data: {
           contactId: updated.id,
@@ -260,6 +356,9 @@ export class CompanyContactService {
       | "invalid_nonexistent"
       | "invalid_email"
       | "invalid_other"
+      | "invalid_unavailable"
+      | "invalid_third_party"
+      | "invalid_out_of_service"
       | "archive"
       | "restore";
     reason?: string;
@@ -270,6 +369,19 @@ export class CompanyContactService {
         select: snapshotSelect,
       });
       if (!previous) throw new Error("CONTACT_NOT_FOUND");
+      const company = await tx.company.findUnique({
+        where: { id: previous.companyId },
+        select: { phone: true, email: true },
+      });
+      const legacyValue = isPhoneType(previous.type)
+        ? company?.phone
+        : previous.type === ContactType.EMAIL
+          ? company?.email
+          : null;
+      const mirrorsLegacy =
+        previous.source === "FICHA_PRINCIPAL" ||
+        canonicalContactValue(previous.type, legacyValue || "") ===
+          previous.canonicalValue;
 
       if (intent === "primary") {
         if (previous.archivedAt || previous.validity === ContactValidity.INVALID) {
@@ -285,7 +397,7 @@ export class CompanyContactService {
             ? ContactInvalidReason.NONEXISTENT
           : intent === "invalid_email"
               ? ContactInvalidReason.INVALID_EMAIL
-            : intent === "invalid_other"
+            : ["invalid_other", "invalid_unavailable", "invalid_third_party", "invalid_out_of_service"].includes(intent)
               ? ContactInvalidReason.OTHER
             : null;
       const now = new Date();
@@ -334,6 +446,18 @@ export class CompanyContactService {
         data,
         select: snapshotSelect,
       });
+      if (mirrorsLegacy) {
+        const nextLegacyValue =
+          intent === "archive" || invalidReason ? null : updated.value;
+        await tx.company.update({
+          where: { id: previous.companyId },
+          data: isPhoneType(previous.type)
+            ? { phone: nextLegacyValue }
+            : previous.type === ContactType.EMAIL
+              ? { email: nextLegacyValue }
+              : {},
+        });
+      }
       const eventType = invalidReason
         ? "INVALIDATED"
         : intent === "archive"

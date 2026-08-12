@@ -28,7 +28,10 @@ export async function updateCompanyQualification(formData: FormData) {
     baseId: formData.get("baseId"),
     companyId: formData.get("companyId"),
     qualification: formData.get("qualification"),
-    reason: formData.get("reason") || undefined,
+    reason:
+      formData.get("qualificationReason") ||
+      formData.get("reason") ||
+      undefined,
   });
   if (!parsed.success) return;
   await OperationService.updateQualification({

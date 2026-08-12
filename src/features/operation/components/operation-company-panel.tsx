@@ -28,6 +28,11 @@ export function OperationCompanyPanel({
     id: string;
     corporateName: string;
     tradeName: string | null;
+    segment: string | null;
+    website: string | null;
+    city: string | null;
+    state: string | null;
+    description?: string | null;
     contactName: string | null;
     notes: string | null;
   };
@@ -64,9 +69,33 @@ export function OperationCompanyPanel({
             Nome fantasia
             <Input name="tradeName" defaultValue={company.tradeName || ""} maxLength={255} />
           </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-sm">
+              Segmento
+              <Input name="segment" defaultValue={company.segment || ""} maxLength={180} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              Site
+              <Input name="website" defaultValue={company.website || ""} maxLength={500} />
+            </label>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_5rem]">
+            <label className="grid gap-1 text-sm">
+              Cidade
+              <Input name="city" defaultValue={company.city || ""} maxLength={180} />
+            </label>
+            <label className="grid gap-1 text-sm">
+              UF
+              <Input name="state" defaultValue={company.state || ""} maxLength={2} />
+            </label>
+          </div>
           <label className="grid gap-1 text-sm">
             Presidente, representante ou responsável
             <Input name="contactName" defaultValue={company.contactName || ""} maxLength={255} />
+          </label>
+          <label className="grid gap-1 text-sm">
+            Descrição da atividade
+            <Textarea name="description" defaultValue={company.description || ""} maxLength={2000} />
           </label>
           <label className="grid gap-1 text-sm">
             Observações gerais

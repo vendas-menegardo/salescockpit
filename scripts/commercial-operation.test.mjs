@@ -214,7 +214,7 @@ test("serviço usa idempotência e atualização otimista dentro da transação"
   assert.match(source, /completedAt: interaction\.createdAt/);
 });
 
-test("classificação e atendimento são persistidos na mesma transação", () => {
+test("classificação acompanha o atendimento e também aceita decisão sem contato", () => {
   const source = fs.readFileSync(
     "src/features/operation/services/operation-service.ts",
     "utf8"
@@ -228,8 +228,47 @@ test("classificação e atendimento são persistidos na mesma transação", () =
   assert.match(source, /baseCompanyChange\.create/);
   assert.match(workspace, /name="qualification"/);
   assert.match(workspace, /form="operation-interaction-form"/);
-  assert.match(workspace, /salva junto com o atendimento/i);
-  assert.doesNotMatch(workspace, /action=\{updateCompanyQualification\}/);
+  assert.match(workspace, /Salvar decisão sem atendimento/);
+  assert.match(workspace, /formAction=\{updateCompanyQualification\}/);
+  assert.match(workspace, /formNoValidate/);
+});
+
+test("decisão sem atendimento atualiza apenas a qualificação", () => {
+  const actions = fs.readFileSync(
+    "src/features/operation/actions/operation-actions.ts",
+    "utf8"
+  );
+  const start = actions.indexOf("export async function updateCompanyQualification");
+  const end = actions.indexOf("export async function recordCommunicationEvent", start);
+  const qualificationAction = actions.slice(start, end);
+  assert.match(qualificationAction, /OperationService\.updateQualification/);
+  assert.match(qualificationAction, /formData\.get\("qualificationReason"\)/);
+  assert.doesNotMatch(qualificationAction, /saveInteraction|recordCommunication/);
+});
+
+test("Operação gerencia ficha principal e situações individuais dos telefones", () => {
+  const panel = fs.readFileSync(
+    "src/features/operation/components/operation-contact-panel.tsx",
+    "utf8"
+  );
+  const service = fs.readFileSync(
+    "src/features/companies/services/company-contact-service.ts",
+    "utf8"
+  );
+  assert.match(panel, /Organizar contatos da ficha/);
+  assert.match(panel, /legacyPhone/);
+  assert.match(service, /responsibleName: company\.contactName/);
+  for (const intent of [
+    "invalid_unavailable",
+    "invalid_out_of_service",
+    "invalid_third_party",
+  ]) {
+    assert.match(panel, new RegExp(intent));
+    assert.match(service, new RegExp(intent));
+  }
+  assert.match(service, /source: "FICHA_PRINCIPAL"/);
+  assert.match(service, /mirrorsLegacy/);
+  assert.match(service, /companyContactEvent\.create/);
 });
 
 test("chaves idempotentes são criadas no servidor sem divergência de hidratação", () => {

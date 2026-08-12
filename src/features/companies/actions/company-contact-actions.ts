@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth-session";
+import { OperationService } from "@/features/operation/services/operation-service";
 import { CompanyContactService } from "../services/company-contact-service";
 import {
   companyContactSchema,
@@ -21,6 +22,22 @@ function revalidateCompanyContactPaths(companyId: string) {
   revalidatePath("/operacao");
   revalidatePath("/");
   revalidatePath("/relatorios");
+  revalidatePath("/enriquecimento");
+}
+
+export async function materializeLegacyContacts(formData: FormData) {
+  const session = await requireSession();
+  const companyId = String(formData.get("companyId") || "");
+  if (!companyId) return;
+  try {
+    await CompanyContactService.materializeLegacyContacts(
+      companyId,
+      session.user.id
+    );
+    revalidateCompanyContactPaths(companyId);
+  } catch {
+    return;
+  }
 }
 
 export async function addCompanyContact(
@@ -79,6 +96,9 @@ const contactIntents = [
   "invalid_wrong",
   "invalid_nonexistent",
   "invalid_email",
+  "invalid_unavailable",
+  "invalid_third_party",
+  "invalid_out_of_service",
   "archive",
   "restore",
 ] as const;
@@ -86,6 +106,7 @@ const contactIntents = [
 export async function updateCompanyContact(formData: FormData) {
   const session = await requireSession();
   const contactId = String(formData.get("contactId") || "");
+  const baseId = String(formData.get("baseId") || "");
   const intent = String(formData.get("intent") || "");
   if (
     !contactId ||
@@ -101,6 +122,15 @@ export async function updateCompanyContact(formData: FormData) {
       intent: intent as (typeof contactIntents)[number],
       reason: String(formData.get("reason") || "").trim() || undefined,
     });
+    if (result.suggestContactUpdate && baseId) {
+      await OperationService.updateQualification({
+        baseId,
+        companyId: result.contact.companyId,
+        qualification: "ATUALIZAR_CONTATO",
+        reason: "Empresa sem telefone ativo após revisão individual dos contatos.",
+        userId: session.user.id,
+      });
+    }
     revalidateCompanyContactPaths(result.contact.companyId);
   } catch {
     return;
