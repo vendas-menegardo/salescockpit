@@ -17,6 +17,7 @@ import {
 import { CompanyService } from "@/features/companies/services/company-service";
 
 const ANSWERED_RESULTS = [
+  InteractionResult.ATENDEU,
   InteractionResult.PESSOA_ERRADA,
   InteractionResult.RECEPCAO,
   InteractionResult.RESPONSAVEL_INDISPONIVEL,
@@ -26,6 +27,12 @@ const ANSWERED_RESULTS = [
   InteractionResult.EMPRESA_INADEQUADA,
   InteractionResult.EMPRESA_QUALIFICADA,
   InteractionResult.REUNIAO_AGENDADA,
+];
+
+const INVALID_NUMBER_RESULTS = [
+  InteractionResult.NUMERO_INVALIDO,
+  InteractionResult.NUMERO_ERRADO,
+  InteractionResult.NUMERO_INEXISTENTE,
 ];
 
 const RESPONSIBLE_RESULTS = [
@@ -138,7 +145,7 @@ export class AnalyticsService {
         where: {
           AND: [
             interactionWhere,
-            { result: InteractionResult.NUMERO_INVALIDO },
+            { result: { in: INVALID_NUMBER_RESULTS } },
           ],
         },
       }),
