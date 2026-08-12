@@ -550,13 +550,18 @@ export class CompanyContactService {
         data,
         select: snapshotSelect,
       });
-      if (mirrorsLegacy) {
+      if (mirrorsLegacy || intent === "primary") {
         const nextLegacyValue =
           intent === "archive" || invalidReason ? null : updated.value;
         await tx.company.update({
           where: { id: previous.companyId },
           data: isPhoneType(previous.type)
-            ? { phone: nextLegacyValue }
+            ? {
+                phone: nextLegacyValue,
+                ...(intent === "primary"
+                  ? { contactName: updated.responsibleName }
+                  : {}),
+              }
             : previous.type === ContactType.EMAIL
               ? { email: nextLegacyValue }
               : {},

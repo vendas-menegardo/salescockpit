@@ -271,6 +271,9 @@ test("Operação gerencia ficha principal e situações individuais dos telefone
   }
   assert.match(service, /source: "FICHA_PRINCIPAL"/);
   assert.match(service, /mirrorsLegacy/);
+  assert.match(service, /mirrorsLegacy \|\| intent === "primary"/);
+  assert.match(service, /phone: nextLegacyValue/);
+  assert.match(service, /contactName: updated\.responsibleName/);
   assert.match(service, /companyContactEvent\.create/);
 });
 
