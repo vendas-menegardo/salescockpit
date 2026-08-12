@@ -257,6 +257,10 @@ test("Operação gerencia ficha principal e situações individuais dos telefone
   );
   assert.match(panel, /Organizar contatos da ficha/);
   assert.match(panel, /legacyPhone/);
+  assert.match(panel, /Principal da ficha/);
+  assert.match(panel, /Editar contato principal/);
+  assert.match(panel, /Editar telefones e contatos/);
+  assert.match(panel, /open=\{isLegacyContact \|\| undefined\}/);
   assert.match(service, /responsibleName: company\.contactName/);
   for (const intent of [
     "invalid_unavailable",
