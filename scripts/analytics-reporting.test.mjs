@@ -106,6 +106,18 @@ test("Dashboard e Relatórios usam a mesma fonte de métricas", () => {
   assert.match(reports, /AnalyticsService\.getMetrics/);
 });
 
+test("métricas reconhecem os resultados realmente oferecidos na Operação", () => {
+  const analytics = fs.readFileSync(
+    "src/features/analytics/services/analytics-service.ts",
+    "utf8"
+  );
+  assert.match(analytics, /ANSWERED_RESULTS = \[[\s\S]*InteractionResult\.ATENDEU/);
+  assert.match(analytics, /INVALID_NUMBER_RESULTS = \[/);
+  assert.match(analytics, /InteractionResult\.NUMERO_ERRADO/);
+  assert.match(analytics, /InteractionResult\.NUMERO_INEXISTENTE/);
+  assert.match(analytics, /result: \{ in: INVALID_NUMBER_RESULTS \}/);
+});
+
 test("exportação exige sessão e aplica escopo de perfil", () => {
   const source = fs.readFileSync(
     "src/app/api/reports/export/route.ts",
